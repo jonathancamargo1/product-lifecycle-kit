@@ -13,6 +13,7 @@ import re
 import sys
 from pathlib import Path
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _kitlib as kit
 
@@ -201,9 +202,10 @@ def check_sequence(root, report, state, fase_alvo=None):
             continue
         gate = gates.get(anterior) or {}
         if gate.get("status") != "approved":
+            atual = gate.get("status") or "nao registrado"
             report.erro("SQ-01", "docs/STATE.md", state_line(root, "current_phase"),
-                        "fase %s exige a fase obrigatoria %s aprovada, mas ela esta %r"
-                        % (fase, anterior, gate.get("status")))
+                        "fase %s exige a fase obrigatoria %s aprovada, mas ela esta %s"
+                        % (fase, anterior, atual))
 
 
 def check_decisions(root, report, state):

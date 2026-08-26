@@ -15,6 +15,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _kitlib as kit
 
@@ -75,8 +76,12 @@ def main(argv=None):
 
     if args.check:
         if motivo:
-            sys.stderr.write("Sessao nao pode encerrar: %s. Execute "
-                             "/session-close.\n" % motivo)
+            # Mensagem neutra de runtime: o nucleo nao sabe qual agente o
+            # opera (principio 12). Quem traduz para o comando local e o
+            # adaptador, em .claude/hooks/stop-gate.sh no caso do Claude Code.
+            sys.stderr.write(
+                "Sessao nao pode encerrar: %s.\n"
+                "Feche com: session-close --handoff <arquivo>\n" % motivo)
             return 1
         print("session-close: nada pendente, a sessao pode encerrar.")
         return 0
@@ -114,6 +119,7 @@ def main(argv=None):
     state["last_session"] = rel
     state["session_open"] = False
     kit.write_state(root, state)
+    kit.refresh_area_panels(root, state)
     print("Handoff registrado em %s." % rel)
 
     resultado = subprocess.run([sys.executable, os.path.join(AQUI, "gate-check")],

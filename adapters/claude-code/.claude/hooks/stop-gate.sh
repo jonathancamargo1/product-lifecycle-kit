@@ -19,5 +19,7 @@ MOTIVO=$(python3 "$ROOT/bin/lifecycle/session-close" --check 2>&1)
 if [ $? -eq 0 ]; then
     exit 0
 fi
-printf '%s\n' "$MOTIVO" >&2
+# O nucleo devolve o motivo em linguagem neutra. Traduzir para o comando
+# deste runtime e trabalho do adaptador, nao do nucleo.
+printf '%s\nExecute /session-close.\n' "$MOTIVO" >&2
 exit 2

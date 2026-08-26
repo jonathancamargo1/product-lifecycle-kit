@@ -158,6 +158,44 @@ class TestGuardCommit(KitTestCase):
         self.assertIn("docs/_context/CONTEXT.md", saida)
         self.assertIn("docs/_process/tiers.md", saida)
 
+    def test_bloqueia_commit_de_docs_com_sessao_aberta(self):
+        """Equivalente comum da garantia do hook Stop do Claude Code.
+
+        Sem hook de runtime, nada impede o agente de parar no meio. O que
+        impede o trabalho de entrar sem handoff e este guard.
+        """
+        self.git_init()
+        estado = dict(DEFAULT_STATE)
+        estado.update({"session_open": True, "session_counter": 1,
+                       "session_agent": "codex"})
+        self.write_state(estado)
+        self.write_artifact("nucleo", "01-contexto", "contexto")
+        self._add()
+        result = self.guard()
+        self.assertEqual(result.returncode, 1)
+        saida = result.stdout + result.stderr
+        self.assertIn("session-close", saida)
+
+    def test_permite_commit_fora_de_docs_com_sessao_aberta(self):
+        """Codigo do projeto nao e refem do protocolo de sessao."""
+        self.git_init()
+        estado = dict(DEFAULT_STATE)
+        estado.update({"session_open": True, "session_counter": 1,
+                       "session_agent": "codex"})
+        self.write_state(estado)
+        (self.root / "src").mkdir(exist_ok=True)
+        (self.root / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+        import subprocess
+        subprocess.run(["git", "add", "src/app.py"], cwd=str(self.root),
+                       capture_output=True)
+        self.assertEqual(self.guard().returncode, 0)
+
+    def test_permite_commit_de_docs_com_sessao_fechada(self):
+        self.git_init()
+        self.write_artifact("nucleo", "01-contexto", "contexto")
+        self._add()
+        self.assertEqual(self.guard().returncode, 0)
+
     def _add(self):
         import subprocess
         subprocess.run(["git", "add", "-A"], cwd=str(self.root), capture_output=True)

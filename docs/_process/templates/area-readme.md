@@ -11,10 +11,11 @@
 
 ## Painel de gates
 
-<!-- Uma linha por fase obrigatoria do tier. Fase nao obrigatoria pelo tier
-     nao aparece nesta tabela. new-artifact adiciona a linha ao criar o
-     artefato. Status: in_progress, proposed, approved ou superseded.
-     Aprovado por e nome de pessoa. Agente nunca escreve approved. -->
+<!-- Vista derivada, nao fonte. A tabela e o campo Status geral sao reescritos
+     inteiros a partir de docs/STATE.md por session-open, new-artifact e
+     session-close. Nao edite a mao: sua edicao sera sobrescrita. Status vive
+     em dois lugares apenas, o frontmatter do artefato e o STATE.md.
+     Fase nao obrigatoria pelo tier nao aparece aqui. -->
 
 | Gate | Entregavel | Status | Evidencia | Aprovado por | Data |
 |---|---|---|---|---|---|

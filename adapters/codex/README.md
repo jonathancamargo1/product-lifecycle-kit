@@ -28,12 +28,18 @@ mapeamento entre os dois runtimes.
 |---|---|---|
 | Contexto carregado na abertura | hook `SessionStart` roda `session-open` sozinho | `AGENTS.md` manda rodar como primeira acao |
 | Escrita em arquivo protegido | hook `PreToolUse` bloqueia a ferramenta, exit 2 | `pre-commit` roda `guard-commit` e recusa o commit |
-| Sessao encerrada sem handoff | hook `Stop` bloqueia o encerramento | `pre-commit` roda `gate-check`, e o handoff pendente aparece no proximo `session-open`, que se recusa a abrir |
+| Sessao encerrada sem handoff | hook `Stop` bloqueia o encerramento | `pre-commit` roda `guard-commit`, que recusa qualquer commit em `docs/` enquanto `session_open` for `true`. O trabalho nao entra sem handoff |
 | Mensagem de commit de sessao | nenhuma vantagem | `commit-msg` valida em ambos |
 
 A diferenca e o momento, nao o resultado. No Claude Code a escrita indevida e
 barrada na hora. No Codex ela chega ao disco e e barrada no commit. Nos dois
 casos ela nao entra no repositorio.
+
+A unica garantia que fica so no adaptador e a da linha 1: o Claude Code carrega
+o contexto sozinho, e no Codex isso depende de `AGENTS.md` ser lido. Nao ha
+como uma maquina obrigar um agente a ler antes de agir. As outras tres
+garantias sao impostas por git, nao por agente, e por isso valem em qualquer
+runtime, inclusive num humano no editor.
 
 ## Sessao tipica
 

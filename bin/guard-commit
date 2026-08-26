@@ -11,15 +11,45 @@ proposed por approved, continua possivel.
 import os
 import sys
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _kitlib as kit
 
 
 
+def sessao_aberta_bloqueia(root, staged):
+    """Equivalente comum da garantia do hook Stop do Claude Code.
+
+    O Claude Code impede o agente de encerrar com a sessao aberta. Nenhum
+    outro runtime tem esse hook, entao aqui a mesma garantia chega mais
+    tarde: trabalho em docs/ nao entra no repositorio enquanto a sessao nao
+    for fechada com handoff. Codigo do projeto passa livre, para o protocolo
+    nao virar refem de um commit de fonte.
+    """
+    if not any(rel.startswith("docs/") for rel in staged):
+        return None
+    try:
+        state = kit.read_state(root)
+    except ValueError:
+        return None
+    if not state.get("session_open"):
+        return None
+    return ("Sessao %s ainda aberta (agente %s). O handoff dela nao foi "
+            "escrito.\nFeche com: session-close --handoff <arquivo>"
+            % (state.get("session_counter"), state.get("session_agent")))
+
+
 def main(argv=None):
     root = kit.repo_root()
+    staged = kit.staged_files(root)
+
+    motivo_sessao = sessao_aberta_bloqueia(root, staged)
+    if motivo_sessao:
+        sys.stderr.write(motivo_sessao + "\n")
+        return 1
+
     bloqueados = []
-    for rel in kit.staged_files(root):
+    for rel in staged:
         motivo = kit.blocking_reason(
             root, rel, content_reader=lambda p: kit.head_content(root, p))
         if motivo:

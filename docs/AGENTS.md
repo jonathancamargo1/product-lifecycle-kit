@@ -14,7 +14,7 @@ qualquer outra coisa.
 | Acao | Qualquer runtime | Claude Code tambem |
 |---|---|---|
 | Abrir sessao | `bin/lifecycle/session-open --agent <codex\|claude-code\|human>` | `/session-open` |
-| Criar artefato | `bin/lifecycle/new-artifact <fase> <area> "<titulo>" --owner <nome>` | `/new-artifact` |
+| Criar artefato | `bin/lifecycle/new-artifact <fase> <area> "<titulo>" --owner <nome> [--inputs <paths>]` | `/new-artifact` |
 | Abrir decisao | `bin/lifecycle/decide --titulo "..." --afeta <path>` | `/decide` |
 | Verificar tudo | `bin/lifecycle/gate-check` | nao ha |
 | Fechar sessao | `bin/lifecycle/session-close --handoff <arquivo>` | `/session-close` |
@@ -45,6 +45,9 @@ handoffs em `docs/_handoffs/`, e o codigo do projeto.
 `docs/_context/CONTEXT.md`, ADR com status `accepted`, artefato com status
 `approved`, `docs/_process/` inteiro, e este arquivo. Os guards recusam a
 escrita e o `pre-commit` recusa o commit.
+
+`--inputs` e obrigatorio fora das fases 01 e 02: liste os paths dos artefatos
+que este se apoia, separados por virgula.
 
 ## Ao concluir um artefato
 

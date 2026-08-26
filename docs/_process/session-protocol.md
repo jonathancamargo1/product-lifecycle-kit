@@ -55,6 +55,10 @@ o resultado for limpo, commita `docs` com a mensagem
 `session-close --check` apenas verifica se a sessao pode encerrar. Sai com 1 e
 o motivo se algo falta. E o que o hook `Stop` do Claude Code usa.
 
+Em qualquer runtime, com ou sem hook, o `pre-commit` recusa commit em `docs/`
+enquanto `session_open` for `true`. Sessao aberta nao vira historico: ou fecha
+com handoff, ou o trabalho fica fora do repositorio.
+
 ## Por que 15 linhas
 
 Handoff longo nao e lido. O proximo agente precisa de tres coisas: o que

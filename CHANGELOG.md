@@ -3,6 +3,13 @@
 Formato: uma secao por versao, mais nova em cima. Semver. O major muda quando
 um projeto instalado precisa de intervencao manual para continuar valendo.
 
+## 1.1.0
+
+Versao usada para provar o fluxo `install.sh --update` (modo C do README).
+Nenhuma mudanca de comportamento em relacao a 1.0.0: processo e scripts sao
+reenviados ao alvo e `docs/KIT_VERSION` passa a 1.1.0, sem tocar em estado,
+contexto, handoffs ou artefatos.
+
 ## 1.0.0
 
 Primeira versao.

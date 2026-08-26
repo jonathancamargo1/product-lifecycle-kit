@@ -166,3 +166,108 @@ manual e humana, documentada em `docs/_process/gates.md`. Criar um
 `bin/approve` facilitaria justamente o que o principio 4 quer dificultar.
 
 Efeito: `docs/_process/gates.md`, provas dos modos A e B.
+
+## Q14. Acentuacao: templates acentuados, resto do kit em ASCII
+
+Os 20 templates de fase usam portugues acentuado nos titulos de secao
+(`## Proposito` saiu como `## Propósito`). Os documentos de processo, o
+AGENTS.md, os scripts e este arquivo usam portugues sem acento, por escolha
+de portabilidade.
+
+Interpretacao adotada: as duas convencoes convivem. O texto acentuado e
+portugues correto e os templates sao o que o humano mais le; o resto do kit e
+ASCII para nunca depender de locale em terminal, hook ou pipe. Nenhum script
+casa titulo de secao por texto, entao a divergencia nao quebra nada.
+
+Se voce preferir uma convencao unica, a decisao e sua: acentuar tudo e mais
+correto, tirar acento de tudo e mais portavel.
+
+Efeito: `docs/_process/templates/*.md` versus o restante do kit.
+
+## Q15. `gate-check` ignora `README.md` sob `docs/areas/`
+
+FM-01 exige frontmatter em todo `.md` sob `docs/areas/`. Mas o painel da area
+e um `README.md` que nasce de `area-readme.md`, e a secao 4 nao da frontmatter
+a esse template.
+
+Interpretacao adotada: `README.md` sob `docs/areas/` e excluido de FM-01. E
+painel, nao artefato: nao tem gate, nao tem `inputs` e nao tem aprovacao.
+
+Efeito: `bin/gate-check`, funcao `artifacts()`.
+
+## Q16. VC-01 nao varre `docs/_process/`
+
+VC-01 deveria varrer `docs/` inteiro atras de termos proibidos. Mas
+`docs/_process/` e material do kit, nao vocabulario do projeto, e templates
+genericos acionam falso positivo em qualquer glossario minimamente restritivo.
+
+Interpretacao adotada: VC-01 pula `docs/_process/`. Varre `docs/` fora dele,
+mais `src/`, `app/` e `packages/`.
+
+Efeito: `bin/gate-check`, funcao `check_vocabulary()`.
+
+## Q17. `new-artifact` ganhou `--inputs` e passou a exigi-lo
+
+A secao 9 nao da a `new-artifact` nenhuma forma de declarar `inputs`. Mas a
+secao 5 proibe `inputs` vazio fora das fases 01 e 02. Sem a opcao, todo
+artefato criado da fase 03 em diante nasceria reprovado pelo proprio
+`gate-check`, travando o `session-close` seguinte.
+
+Interpretacao adotada: `--inputs a,b` foi acrescentado, e `new-artifact`
+recusa criar sem ele fora das fases 01 e 02, alem de recusar input
+inexistente. A regra passa a ser imposta na criacao, e nao descoberta depois.
+
+Efeito: `bin/new-artifact`.
+
+## Q18. O painel da area e vista derivada, regerada por script
+
+A secao 4 exige um painel de gates por area com coluna `Status`. O principio 8
+diz que status vive em dois lugares apenas. Sao exigencias que se chocam: o
+painel e uma terceira copia do status.
+
+Interpretacao adotada: o painel e vista derivada, nunca fonte.
+`kit.refresh_area_panels()` reescreve a tabela inteira a partir de
+`docs/STATE.md`, e roda em todo `new-artifact` e em todo `session-close`.
+Assim a terceira copia existe (a secao 4 pede) mas nao pode divergir (o
+principio 8 exige). Fases nao obrigatorias pelo tier nao entram no painel.
+
+Efeito: `bin/_kitlib.py`, `bin/new-artifact`, `bin/session-close`.
+
+## Q19. A garantia do hook Stop no enforcement comum
+
+A secao 2 exige que toda garantia de adaptador exista tambem no enforcement
+comum. O hook `Stop` do Claude Code impede encerrar com a sessao aberta.
+Nenhum outro runtime tem equivalente, e a deteccao tardia via `session-open`
+nao serve: quando ela acontece, o handoff daquela sessao ja foi perdido.
+
+Interpretacao adotada: `guard-commit` recusa qualquer commit que toque
+`docs/` enquanto `session_open` for `true`. Commit de codigo fora de `docs/`
+passa livre, para o protocolo de sessao nao virar refem de um commit de
+fonte. Trabalho de processo nao entra no historico sem handoff, em qualquer
+runtime.
+
+Uma garantia continua so no adaptador, e nao ha como impor por maquina: o
+`SessionStart` carrega o contexto sozinho no Claude Code, e nos demais
+runtimes isso depende de o agente ler `AGENTS.md`. Nenhum script obriga um
+agente a ler antes de agir.
+
+Efeito: `bin/guard-commit`, `adapters/codex/README.md`.
+
+## Q20. Adicoes a arvore da secao 3
+
+Alem de `bin/decide` (Q7), o kit tem quatro arquivos que a arvore da secao 3
+nao lista:
+
+- `bin/_kitlib.py`: biblioteca compartilhada pelos scripts. Sem ela, o parser
+  de YAML, o contrato de frontmatter e a regra de path protegido estariam
+  copiados em sete executaveis.
+- `adapters/claude-code/merge-settings.py`: mescla hooks num
+  `.claude/settings.json` que ja existe, como a secao 13 pede. Vive no
+  adaptador, nao no nucleo, porque so serve a um runtime.
+- `adapters/claude-code/.claude/hooks/`: dois wrappers de encanamento. O
+  runtime entrega o evento como JSON no stdin, e os scripts do nucleo recebem
+  argumentos. Os wrappers so traduzem entre os dois, sem nenhuma regra propria.
+- `proofs/`: os scripts que geram as provas do README, para que a secao
+  "Prova de funcionamento" seja reproduzivel e nao apenas colada.
+
+Efeito: arvore do kit.

@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-KIT_VERSION = "1.0.0"
+KIT_VERSION = "1.1.0"
 
 PHASES = [
     "01-contexto", "02-discovery", "03-csd", "04-personas-jornada", "05-prd",
@@ -55,7 +55,7 @@ STATE_COMMENTS = {
 }
 
 DEFAULT_PROTECTED_GLOBS = ["docs/_context/CONTEXT.md", "docs/_process/**",
-                           "AGENTS.md"]
+                           "AGENTS.md", "docs/AGENTS.md"]
 
 SESSION_AGENTS = ("codex", "claude-code", "human")
 
@@ -452,6 +452,79 @@ def _frontmatter_from_text(texto):
             except ValueError:
                 return None
     return None
+
+
+# ------------------------------------------------------- painel de area
+
+PANEL_HEADER = "| Gate | Entregavel | Status | Evidencia | Aprovado por | Data |"
+
+
+def area_of(rel_path):
+    partes = rel_path.split("/")
+    if len(partes) > 2 and partes[0] == "docs" and partes[1] == "areas":
+        return partes[2]
+    return None
+
+
+def refresh_area_panels(root, state):
+    """Regera o painel de gates de cada area a partir de STATE.md.
+
+    O painel e vista derivada, nunca fonte. Status continua vivendo em dois
+    lugares apenas (principio 8): o frontmatter do artefato e STATE.md. Esta
+    funcao existe para que a terceira copia nunca possa divergir: ela e
+    reescrita inteira a cada new-artifact e a cada session-close.
+    """
+    gates = state.get("gates") or {}
+    obrigatorias = required_phases(state.get("tier"))
+    por_area = {}
+    for slug, gate in gates.items():
+        gate = gate or {}
+        if obrigatorias is not None and slug not in obrigatorias:
+            continue
+        area = area_of(str(gate.get("evidence") or ""))
+        if area:
+            por_area.setdefault(area, []).append((slug, gate))
+
+    base = Path(root) / "docs" / "areas"
+    if not base.exists():
+        return
+    for area in sorted(p.name for p in base.iterdir() if p.is_dir()):
+        readme = base / area / "README.md"
+        if not readme.exists():
+            continue
+        linhas = readme.read_text(encoding="utf-8").splitlines()
+        inicio = None
+        for index, linha in enumerate(linhas):
+            if linha.replace(" ", "").startswith("|Gate|Entregavel|"):
+                inicio = index
+                break
+        if inicio is None:
+            continue
+        fim = inicio + 1
+        while fim < len(linhas) and linhas[fim].startswith("|"):
+            fim += 1
+        novas = [PANEL_HEADER, "|---|---|---|---|---|---|"]
+        for slug, gate in sorted(por_area.get(area, [])):
+            evidencia = str(gate.get("evidence") or "")
+            fields, _ = read_frontmatter(Path(root) / evidencia)
+            titulo = (fields or {}).get("title") or ""
+            novas.append("| %s | %s | %s | %s | %s | %s |" % (
+                slug, titulo, gate.get("status") or "",
+                evidencia, gate.get("by") or "", gate.get("date") or ""))
+        linhas[inicio:fim] = novas
+
+        entradas = por_area.get(area, [])
+        if obrigatorias is not None:
+            faltam = [s for s in obrigatorias
+                      if (gates.get(s) or {}).get("status") != "approved"]
+            geral = "em andamento" if faltam else "concluida"
+        else:
+            geral = "em andamento"
+        for index, linha in enumerate(linhas):
+            if linha.replace(" ", "").startswith("|Statusgeral|"):
+                linhas[index] = "| Status geral | %s |" % geral
+                break
+        readme.write_text("\n".join(linhas) + "\n", encoding="utf-8")
 
 
 # ------------------------------------------------------------------ decisoes

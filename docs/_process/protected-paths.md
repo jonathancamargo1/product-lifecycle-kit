@@ -12,6 +12,7 @@ comportamento dos guards.
 docs/_context/CONTEXT.md
 docs/_process/**
 AGENTS.md
+docs/AGENTS.md
 ```
 
 ## Protegidos por status do frontmatter

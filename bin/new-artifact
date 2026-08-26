@@ -17,6 +17,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _kitlib as kit
 
@@ -77,22 +78,6 @@ def cria_readme_da_area(root, area, owner, tier):
     return destino
 
 
-def registra_no_painel(readme, fase, titulo, rel):
-    texto = readme.read_text(encoding="utf-8")
-    if "| %s |" % fase in texto:
-        return
-    linhas = texto.splitlines()
-    for index, linha in enumerate(linhas):
-        if linha.startswith("|---"):
-            nova = "| %s | %s | in_progress | %s | | |" % (fase, titulo, rel)
-            fim = index + 1
-            while fim < len(linhas) and linhas[fim].startswith("|"):
-                fim += 1
-            linhas.insert(fim, nova)
-            readme.write_text("\n".join(linhas) + "\n", encoding="utf-8")
-            return
-
-
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("phase")
@@ -147,8 +132,7 @@ def main(argv=None):
         + corpo_do_template(modelo) + "\n", encoding="utf-8")
     rel = destino.relative_to(root).as_posix()
 
-    readme = cria_readme_da_area(root, args.area, args.owner, state.get("tier"))
-    registra_no_painel(readme, fase, args.titulo, rel)
+    cria_readme_da_area(root, args.area, args.owner, state.get("tier"))
 
     gates = state.get("gates") or {}
     gates[fase] = {"status": "in_progress", "evidence": rel, "by": None,
@@ -157,6 +141,7 @@ def main(argv=None):
     state["current_phase"] = fase
     state["current_area"] = args.area
     kit.write_state(root, state)
+    kit.refresh_area_panels(root, state)
 
     print("Artefato criado: %s" % rel)
     print("Gate %s registrado como in_progress em docs/STATE.md." % fase)

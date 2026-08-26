@@ -13,6 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _kitlib as kit
 
@@ -53,6 +54,9 @@ def main(argv=None):
     state["session_agent"] = args.agent
     state["session_counter"] = int(state.get("session_counter") or 0) + 1
     kit.write_state(root, state)
+    # O painel da area e vista derivada. Regerar na abertura garante que ele
+    # reflita as aprovacoes feitas por humanos entre uma sessao e outra.
+    kit.refresh_area_panels(root, state)
 
     agents = "AGENTS.md" if (Path(root) / "AGENTS.md").exists() else "docs/AGENTS.md"
     imprime(root, agents)

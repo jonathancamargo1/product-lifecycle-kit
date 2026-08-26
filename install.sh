@@ -108,8 +108,8 @@ instala_hook() {
 
 # --------------------------------------------------------------------- inicio
 
-: > "$MANIFESTO.novo"
 mkdir -p "$ALVO/docs"
+: > "$MANIFESTO.novo"
 
 if [ "$UPDATE" -eq 1 ]; then
     info "Atualizando o kit em $ALVO para a versao $VERSAO."
@@ -164,7 +164,7 @@ instala_adaptador_claude() {
     while IFS= read -r origem; do
         rel=".claude/${origem#"$KIT_DIR/adapters/claude-code/.claude/"}"
         if [ "$rel" = ".claude/settings.json" ] && [ -f "$ALVO/$rel" ]; then
-            python3 "$KIT_DIR/bin/_merge_settings.py" "$origem" "$ALVO/$rel" \
+            python3 "$KIT_DIR/adapters/claude-code/merge-settings.py" "$origem" "$ALVO/$rel" \
                 && info "  .claude/settings.json existente teve os hooks mesclados"
             printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
             continue
@@ -175,7 +175,7 @@ instala_adaptador_claude() {
 }
 
 instala_adaptador_codex() {
-    copia_atualizavel "$KIT_DIR/adapters/codex/README.md" "docs/_process/codex-adapter.md"
+    copia_atualizavel "$KIT_DIR/adapters/codex/README.md" "docs/codex-adapter.md"
 }
 
 case "$ADAPTERS" in
@@ -194,7 +194,7 @@ for adaptador in $ESCOLHIDOS; do
                 instala_adaptador_claude
             fi ;;
         codex)
-            if [ "$UPDATE" -eq 1 ] && [ ! -f "$ALVO/docs/_process/codex-adapter.md" ]; then
+            if [ "$UPDATE" -eq 1 ] && [ ! -f "$ALVO/docs/codex-adapter.md" ]; then
                 info "  adaptador codex nao estava instalado, pulando"
             else
                 info "Adaptador codex."
@@ -219,6 +219,9 @@ if [ -d "$ALVO/docs/templates" ]; then
     done < <(find "$ALVO/docs/templates" -maxdepth 1 -type f -name '*.md' | sort)
     info "  templates reaproveitados no lugar dos novos, um conjunto so:"
     for item in "${REAPROVEITADOS[@]:-}"; do [ -n "$item" ] && info "    $item"; done
+    info "  ATENCAO: os templates reaproveitados sao os seus, nao os do kit."
+    info "  Eles nao foram validados contra a estrutura nova (Gate de saida,"
+    info "  Anti-padroes, Modo reverso). Confira um a um antes de usar."
     info "  docs/templates preservado. Remova quando conferir a migracao."
 fi
 
