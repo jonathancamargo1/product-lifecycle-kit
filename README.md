@@ -273,6 +273,78 @@ proofs/
   varredura.sh
 ```
 
+Arvore de um projeto alvo recem instalado com `install.sh . --adapters all`,
+antes de qualquer fase comecar. `docs/areas/` nasce vazio porque estrutura so
+nasce quando o artefato nasce:
+
+```text
+.claude
+.claude/commands
+.claude/commands/decide.md
+.claude/commands/new-artifact.md
+.claude/commands/session-close.md
+.claude/commands/session-open.md
+.claude/hooks
+.claude/hooks/guard-write.sh
+.claude/hooks/stop-gate.sh
+.claude/settings.json
+AGENTS.md
+CLAUDE.md
+bin
+bin/lifecycle
+bin/lifecycle/_kitlib.py
+bin/lifecycle/decide
+bin/lifecycle/gate-check
+bin/lifecycle/guard-commit
+bin/lifecycle/guard-write
+bin/lifecycle/new-artifact
+bin/lifecycle/session-close
+bin/lifecycle/session-open
+docs
+docs/.kit-manifest
+docs/KIT_VERSION
+docs/STATE.md
+docs/_context
+docs/_context/CONTEXT.md
+docs/_context/adr
+docs/_context/adr/0000-template.md
+docs/_context/decisions.log
+docs/_context/principles.md
+docs/_handoffs
+docs/_process
+docs/_process/definition-of-done.md
+docs/_process/definition-of-ready.md
+docs/_process/gates.md
+docs/_process/lifecycle.md
+docs/_process/protected-paths.md
+docs/_process/session-protocol.md
+docs/_process/templates
+docs/_process/templates/01-contexto.md
+docs/_process/templates/02-discovery.md
+docs/_process/templates/03-csd.md
+docs/_process/templates/04-personas-jornada.md
+docs/_process/templates/05-prd.md
+docs/_process/templates/06-adr.md
+docs/_process/templates/07-flows-ia.md
+docs/_process/templates/08-wireframes.md
+docs/_process/templates/09-usability.md
+docs/_process/templates/10-ui.md
+docs/_process/templates/11-spec.md
+docs/_process/templates/12-backlog-handoff.md
+docs/_process/templates/13-build-log.md
+docs/_process/templates/14-review.md
+docs/_process/templates/15-threat-review.md
+docs/_process/templates/16-verify.md
+docs/_process/templates/17-ship.md
+docs/_process/templates/18-runbook.md
+docs/_process/templates/19-medir.md
+docs/_process/templates/20-retro.md
+docs/_process/templates/area-readme.md
+docs/_process/tiers.md
+docs/areas
+docs/codex-adapter.md
+```
+
 Arvore de um projeto alvo depois de `install.sh . --adapters claude-code`, com
 as quatro fases do tier 1 ja executadas. E a saida real do modo A:
 
