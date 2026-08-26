@@ -1,0 +1,386 @@
+#!/usr/bin/env python3
+"""gate-check: verifica os gates do repositorio atual.
+
+Uso:
+  gate-check                  roda todas as verificacoes e imprime o relatorio
+  gate-check --phase <slug>   verifica se e permitido iniciar essa fase
+  gate-check --json           mesma saida em JSON
+"""
+import argparse
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _kitlib as kit
+
+SCAN_DIRS = ("docs", "src", "app", "packages")
+SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", "dist",
+             "build", ".next", "target"}
+TEXT_SUFFIXES = {".md", ".txt", ".py", ".js", ".jsx", ".ts", ".tsx", ".json",
+                 ".yaml", ".yml", ".html", ".css", ".scss", ".sh", ".sql",
+                 ".rb", ".go", ".java", ".kt", ".swift", ".rs", ".vue", ".php"}
+
+
+class Report:
+    def __init__(self):
+        self.findings = []
+
+    def add(self, code, path, line, message, severity="erro"):
+        self.findings.append({"code": code, "file": str(path), "line": int(line),
+                              "message": message, "severity": severity})
+
+    def erro(self, *args):
+        self.add(*args, severity="erro")
+
+    def aviso(self, *args):
+        self.add(*args, severity="aviso")
+
+    @property
+    def exit_code(self):
+        return 1 if any(f["severity"] == "erro" for f in self.findings) else 0
+
+
+def artifacts(root):
+    base = Path(root) / "docs" / "areas"
+    if not base.exists():
+        return []
+    encontrados = []
+    for path in sorted(base.rglob("*.md")):
+        if path.name == "README.md":
+            continue
+        encontrados.append(path)
+    return encontrados
+
+
+def check_frontmatter(root, report):
+    """FM-01 a FM-05, IN-01 a IN-03."""
+    for path in artifacts(root):
+        rel = path.relative_to(root).as_posix()
+        fields, info = kit.read_frontmatter(path)
+        if fields is None:
+            report.erro("FM-01", rel, 1, info)
+            continue
+        faltando = [c for c in kit.REQUIRED_FRONTMATTER if c not in fields]
+        if faltando:
+            report.erro("FM-02", rel, 1,
+                        "campo obrigatorio ausente: %s" % ", ".join(faltando))
+        status = fields.get("status")
+        if status not in kit.ARTIFACT_STATUSES:
+            report.erro("FM-02", rel, kit.frontmatter_line(path, "status"),
+                        "status %r fora do enum (%s)"
+                        % (status, ", ".join(kit.ARTIFACT_STATUSES)))
+        if status == "approved":
+            if not fields.get("approved_by") or not fields.get("approved_at"):
+                report.erro("FM-03", rel, kit.frontmatter_line(path, "status"),
+                            "status approved exige approved_by e approved_at")
+            aprovador = str(fields.get("approved_by") or "").lower()
+            if any(token in aprovador for token in kit.AGENT_TOKENS):
+                report.erro("FM-04", rel, kit.frontmatter_line(path, "approved_by"),
+                            "approved_by %r parece um agente. Quem aprova e humano."
+                            % fields.get("approved_by"))
+        if status == "superseded" and not fields.get("superseded_by"):
+            report.erro("FM-05", rel, kit.frontmatter_line(path, "status"),
+                        "status superseded exige superseded_by com o path do novo")
+        check_inputs(root, report, path, rel, fields)
+
+
+def check_inputs(root, report, path, rel, fields):
+    entradas = fields.get("inputs")
+    if entradas is None:
+        entradas = []
+    if not isinstance(entradas, list):
+        report.erro("FM-02", rel, kit.frontmatter_line(path, "inputs"),
+                    "inputs precisa ser uma lista")
+        return
+    fase = fields.get("phase")
+    if not entradas and fase not in kit.PHASES_SEM_INPUTS:
+        report.erro("IN-03", rel, kit.frontmatter_line(path, "inputs"),
+                    "inputs vazio so e permitido nas fases %s"
+                    % ", ".join(kit.PHASES_SEM_INPUTS))
+    linha = kit.frontmatter_line(path, "inputs")
+    for entrada in entradas:
+        alvo = Path(root) / str(entrada)
+        if not alvo.exists():
+            report.erro("IN-01", rel, linha, "input nao existe: %s" % entrada)
+            continue
+        aprovado_em = fields.get("approved_at")
+        if not aprovado_em:
+            continue
+        modificado = kit.last_modified(root, str(entrada))
+        if modificado and modificado > str(aprovado_em):
+            report.aviso("IN-02", rel, linha,
+                         "STALE: input %s mudou em %s, depois do approved_at %s"
+                         % (entrada, modificado, aprovado_em))
+
+
+def check_state(root, report):
+    """ST-01 a ST-03. Retorna o estado, ou None se nem deu para ler."""
+    try:
+        state = kit.read_state(root)
+    except ValueError as erro:
+        report.erro("ST-01", "docs/STATE.md", 1, str(erro))
+        return None
+    faltando = [c for c in kit.STATE_KEYS if c not in state]
+    if faltando:
+        report.erro("ST-01", "docs/STATE.md", 1,
+                    "campo ausente em STATE.md: %s" % ", ".join(faltando))
+        return None
+    gates = state.get("gates") or {}
+    if not isinstance(gates, dict):
+        report.erro("ST-01", "docs/STATE.md", 1, "gates precisa ser um mapeamento")
+        return state
+    for slug, gate in gates.items():
+        gate = gate or {}
+        linha = state_line(root, slug)
+        status = gate.get("status")
+        if status not in kit.GATE_STATUSES:
+            report.erro("ST-01", "docs/STATE.md", linha,
+                        "gate %s com status %r fora do enum" % (slug, status))
+        evidencia = gate.get("evidence")
+        if not evidencia:
+            report.erro("ST-03", "docs/STATE.md", linha,
+                        "gate %s sem evidence" % slug)
+            continue
+        alvo = Path(root) / str(evidencia)
+        if not alvo.exists():
+            report.erro("ST-03", "docs/STATE.md", linha,
+                        "evidence do gate %s nao existe: %s" % (slug, evidencia))
+            continue
+        fields, _ = kit.read_frontmatter(alvo)
+        if fields is None:
+            continue
+        artefato = fields.get("status")
+        if not gate_matches(status, artefato):
+            report.erro("ST-02", "docs/STATE.md", linha,
+                        "gate %s marcado %r mas o artefato %s esta %r"
+                        % (slug, status, evidencia, artefato))
+    return state
+
+
+def gate_matches(gate_status, artifact_status):
+    if gate_status == "in_progress":
+        return artifact_status in ("draft", "review")
+    return gate_status == artifact_status
+
+
+def state_line(root, needle):
+    path = kit.state_path(root)
+    try:
+        linhas = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return 1
+    for numero, linha in enumerate(linhas, start=1):
+        if linha.strip().startswith("%s:" % needle):
+            return numero
+    return 1
+
+
+def check_sequence(root, report, state, fase_alvo=None):
+    """SQ-01."""
+    if state is None:
+        return
+    obrigatorias = kit.required_phases(state.get("tier"))
+    if obrigatorias is None:
+        return
+    fase = fase_alvo or state.get("current_phase")
+    if not fase:
+        return
+    try:
+        fase = kit.resolve_phase(str(fase))
+    except ValueError as erro:
+        report.erro("SQ-01", "docs/STATE.md", state_line(root, "current_phase"),
+                    str(erro))
+        return
+    numero = kit.phase_number(fase)
+    gates = state.get("gates") or {}
+    for anterior in obrigatorias:
+        if kit.phase_number(anterior) >= numero:
+            continue
+        gate = gates.get(anterior) or {}
+        if gate.get("status") != "approved":
+            report.erro("SQ-01", "docs/STATE.md", state_line(root, "current_phase"),
+                        "fase %s exige a fase obrigatoria %s aprovada, mas ela esta %r"
+                        % (fase, anterior, gate.get("status")))
+
+
+def check_decisions(root, report, state):
+    """DC-01."""
+    bloqueio = str((state or {}).get("blocked_by") or "")
+    for entrada in kit.parse_decisions(root):
+        if entrada["status"].upper() != "PENDING":
+            continue
+        if entrada["id"] not in bloqueio:
+            report.erro("DC-01", "docs/_context/decisions.log", entrada["line"],
+                        "decisao %s esta PENDING mas blocked_by em STATE.md e %r"
+                        % (entrada["id"], (state or {}).get("blocked_by")))
+
+
+def forbidden_terms(root):
+    """Termos proibidos e as faixas de linha que nao devem ser varridas.
+
+    CONTEXT.md pode ter mais de uma secao "Termos proibidos" (a do esqueleto
+    mais as que o projeto acrescentar). Todas contam, e todas ficam fora da
+    varredura, senao a propria lista acusaria a si mesma.
+    """
+    path = Path(root) / "docs" / "_context" / "CONTEXT.md"
+    if not path.exists():
+        return [], []
+    linhas = path.read_text(encoding="utf-8").splitlines()
+    termos = []
+    faixas = []
+    inicio = None
+    em_comentario = False
+    for numero, linha in enumerate(linhas, start=1):
+        texto = linha.strip()
+        if re.match(r"^#{1,6}\s+Termos proibidos\s*$", texto):
+            if inicio is not None:
+                faixas.append((inicio, numero - 1))
+            inicio = numero
+            em_comentario = False
+            continue
+        if inicio is None:
+            continue
+        if texto.startswith("#"):
+            faixas.append((inicio, numero - 1))
+            inicio = None
+            continue
+        if em_comentario:
+            if "-->" in texto:
+                em_comentario = False
+            continue
+        if texto.startswith("<!--"):
+            if "-->" not in texto:
+                em_comentario = True
+            continue
+        if texto.startswith("- "):
+            termo = texto[2:].split(":", 1)[0].strip().strip("`").strip()
+            if termo:
+                termos.append(termo)
+    if inicio is not None:
+        faixas.append((inicio, len(linhas)))
+    return termos, faixas
+
+
+def check_vocabulary(root, report):
+    """VC-01."""
+    termos, faixas = forbidden_terms(root)
+    if not termos:
+        return
+    padroes = [(termo, re.compile(r"(?<!\w)%s(?!\w)" % re.escape(termo), re.I))
+               for termo in termos]
+    contexto = "docs/_context/CONTEXT.md"
+    for nome in SCAN_DIRS:
+        base = Path(root) / nome
+        if not base.exists():
+            continue
+        for path in sorted(base.rglob("*")):
+            if not path.is_file():
+                continue
+            if any(parte in SKIP_DIRS for parte in path.parts):
+                continue
+            if path.suffix.lower() not in TEXT_SUFFIXES:
+                continue
+            rel = path.relative_to(root).as_posix()
+            if rel.startswith("docs/_process/"):
+                # Material do kit, nao vocabulario do projeto. Ver OPEN_QUESTIONS Q16.
+                continue
+            try:
+                linhas = path.read_text(encoding="utf-8").splitlines()
+            except (OSError, UnicodeDecodeError):
+                continue
+            for numero, linha in enumerate(linhas, start=1):
+                if rel == contexto and any(a <= numero <= b for a, b in faixas):
+                    continue
+                for termo, padrao in padroes:
+                    if padrao.search(linha):
+                        report.erro("VC-01", rel, numero,
+                                    "termo proibido pelo glossario: %r" % termo)
+
+
+def check_dirs(root, report):
+    """DR-01."""
+    base = Path(root) / "docs" / "areas"
+    if not base.exists():
+        return
+    for path in sorted(base.rglob("*")):
+        if not path.is_dir():
+            continue
+        if any(item.name != ".gitkeep" for item in path.iterdir()):
+            continue
+        report.aviso("DR-01", path.relative_to(root).as_posix(), 1,
+                     "pasta vazia. Estrutura so nasce quando o artefato nasce.")
+
+
+def check_kit_version(root, report):
+    """KV-01."""
+    path = Path(root) / "docs" / "KIT_VERSION"
+    if not path.exists():
+        path = Path(root) / "VERSION"
+    if not path.exists():
+        report.aviso("KV-01", "docs/KIT_VERSION", 1,
+                     "arquivo ausente. Rode install.sh para registrar a versao.")
+        return
+    instalada = path.read_text(encoding="utf-8").strip()
+    rel = path.relative_to(root).as_posix()
+    try:
+        major = int(instalada.split(".")[0])
+    except (ValueError, IndexError):
+        report.aviso("KV-01", rel, 1, "versao ilegivel: %r" % instalada)
+        return
+    if major != int(kit.KIT_VERSION.split(".")[0]):
+        report.aviso("KV-01", rel, 1,
+                     "kit instalado %s incompativel com os scripts %s. "
+                     "Rode install.sh --update." % (instalada, kit.KIT_VERSION))
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(add_help=True, description=__doc__)
+    parser.add_argument("--phase", help="verifica se e permitido iniciar a fase")
+    parser.add_argument("--json", action="store_true", dest="as_json")
+    args = parser.parse_args(argv)
+
+    root = kit.repo_root()
+    report = Report()
+
+    fase_alvo = None
+    if args.phase:
+        try:
+            fase_alvo = kit.resolve_phase(args.phase)
+        except ValueError as erro:
+            report.erro("SQ-01", "docs/STATE.md", 1, str(erro))
+
+    check_frontmatter(root, report)
+    state = check_state(root, report)
+    check_sequence(root, report, state)
+    if fase_alvo:
+        check_sequence(root, report, state, fase_alvo=fase_alvo)
+    check_decisions(root, report, state)
+    check_vocabulary(root, report)
+    check_dirs(root, report)
+    check_kit_version(root, report)
+
+    codigo = report.exit_code
+    if args.as_json:
+        print(json.dumps({"root": str(root), "phase": fase_alvo,
+                          "findings": report.findings, "exit_code": codigo},
+                         ensure_ascii=False, indent=2))
+        return codigo
+
+    if not report.findings:
+        alvo = " para iniciar %s" % fase_alvo if fase_alvo else ""
+        print("gate-check: nenhuma ocorrencia%s." % alvo)
+        return codigo
+    for finding in report.findings:
+        print("[%s] %s:%d %s" % (finding["code"], finding["file"],
+                                 finding["line"], finding["message"]))
+    erros = sum(1 for f in report.findings if f["severity"] == "erro")
+    avisos = len(report.findings) - erros
+    print("gate-check: %d erro(s), %d aviso(s)." % (erros, avisos))
+    return codigo
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

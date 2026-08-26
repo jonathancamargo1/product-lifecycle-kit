@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""new-artifact: cria o artefato de uma fase a partir do template.
+
+Uso:
+  new-artifact <phase-slug> <area> "<titulo>" --owner <nome>
+               [--inputs <path>[,<path>]]
+
+Recusa criar se gate-check --phase <slug> falhar. Recusa criar sem --inputs
+fora das fases 01 e 02, porque artefato sem procedencia declarada nao passa
+no proprio gate-check depois.
+"""
+import argparse
+import os
+import re
+import subprocess
+import sys
+import unicodedata
+from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _kitlib as kit
+
+AQUI = os.path.dirname(os.path.abspath(__file__))
+
+
+def slugify(texto):
+    normalizado = unicodedata.normalize("NFKD", texto)
+    sem_acento = "".join(c for c in normalizado if not unicodedata.combining(c))
+    limpo = re.sub(r"[^a-zA-Z0-9]+", "-", sem_acento).strip("-").lower()
+    return limpo or "artefato"
+
+
+def roda_gate_check(*args):
+    return subprocess.run([sys.executable, os.path.join(AQUI, "gate-check")]
+                          + list(args), capture_output=True, text=True)
+
+
+def monta_frontmatter(fase, area, titulo, owner, inputs):
+    linhas = ["---",
+              "phase: %s" % fase,
+              "area: %s" % area,
+              "title: %s" % kit.emit_scalar(titulo),
+              "status: draft",
+              "owner: %s" % kit.emit_scalar(owner)]
+    if inputs:
+        linhas.append("inputs:")
+        linhas.extend("  - %s" % item for item in inputs)
+    else:
+        linhas.append("inputs: []")
+    linhas += ["approved_by: null", "approved_at: null", "superseded_by: null",
+               "---"]
+    return "\n".join(linhas)
+
+
+def corpo_do_template(caminho):
+    linhas = caminho.read_text(encoding="utf-8").splitlines()
+    if linhas and linhas[0].strip() == "---":
+        for index in range(1, len(linhas)):
+            if linhas[index].strip() == "---":
+                return "\n".join(linhas[index + 1:])
+    return "\n".join(linhas)
+
+
+def cria_readme_da_area(root, area, owner, tier):
+    destino = Path(root) / "docs" / "areas" / area / "README.md"
+    if destino.exists():
+        return destino
+    modelo = Path(root) / "docs" / "_process" / "templates" / "area-readme.md"
+    if not modelo.exists():
+        texto = "# Area: %s\n" % area
+    else:
+        texto = modelo.read_text(encoding="utf-8")
+        texto = texto.replace("PREENCHER-AREA", area)
+        texto = texto.replace("PREENCHER-OWNER", owner)
+        texto = texto.replace("PREENCHER-TIER", str(tier if tier else "a definir"))
+    destino.write_text(texto, encoding="utf-8")
+    return destino
+
+
+def registra_no_painel(readme, fase, titulo, rel):
+    texto = readme.read_text(encoding="utf-8")
+    if "| %s |" % fase in texto:
+        return
+    linhas = texto.splitlines()
+    for index, linha in enumerate(linhas):
+        if linha.startswith("|---"):
+            nova = "| %s | %s | in_progress | %s | | |" % (fase, titulo, rel)
+            fim = index + 1
+            while fim < len(linhas) and linhas[fim].startswith("|"):
+                fim += 1
+            linhas.insert(fim, nova)
+            readme.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+            return
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("phase")
+    parser.add_argument("area")
+    parser.add_argument("titulo")
+    parser.add_argument("--owner", required=True)
+    parser.add_argument("--inputs", default="")
+    args = parser.parse_args(argv)
+
+    root = kit.repo_root()
+    try:
+        fase = kit.resolve_phase(args.phase)
+    except ValueError as erro:
+        kit.die("new-artifact: %s" % erro, 1)
+
+    if any(token in args.owner.lower() for token in kit.AGENT_TOKENS):
+        kit.die("new-artifact: owner %r parece um agente. Owner e nome de "
+                "pessoa." % args.owner, 1)
+
+    entradas = [p.strip() for p in args.inputs.split(",") if p.strip()]
+    if not entradas and fase not in kit.PHASES_SEM_INPUTS:
+        kit.die("new-artifact: a fase %s exige --inputs. Apenas as fases %s "
+                "aceitam inputs vazio." % (fase, ", ".join(kit.PHASES_SEM_INPUTS)), 1)
+    for entrada in entradas:
+        if not (Path(root) / entrada).exists():
+            kit.die("new-artifact: input nao existe: %s" % entrada, 1)
+
+    verificacao = roda_gate_check("--phase", fase)
+    if verificacao.returncode != 0:
+        sys.stdout.write(verificacao.stdout)
+        sys.stderr.write(verificacao.stderr)
+        kit.die("new-artifact: gate-check --phase %s falhou. A fase nao pode "
+                "comecar." % fase, 1)
+
+    modelo = Path(root) / "docs" / "_process" / "templates" / ("%s.md" % fase)
+    if not modelo.exists():
+        kit.die("new-artifact: template ausente: %s" % modelo, 1)
+
+    try:
+        state = kit.read_state(root)
+    except ValueError as erro:
+        kit.die("new-artifact: %s" % erro, 1)
+
+    destino = (Path(root) / "docs" / "areas" / args.area / fase
+               / ("%s.md" % slugify(args.titulo)))
+    if destino.exists():
+        kit.die("new-artifact: ja existe %s. Um artefato por gate."
+                % destino.relative_to(root).as_posix(), 1)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text(
+        monta_frontmatter(fase, args.area, args.titulo, args.owner, entradas)
+        + corpo_do_template(modelo) + "\n", encoding="utf-8")
+    rel = destino.relative_to(root).as_posix()
+
+    readme = cria_readme_da_area(root, args.area, args.owner, state.get("tier"))
+    registra_no_painel(readme, fase, args.titulo, rel)
+
+    gates = state.get("gates") or {}
+    gates[fase] = {"status": "in_progress", "evidence": rel, "by": None,
+                   "date": None}
+    state["gates"] = gates
+    state["current_phase"] = fase
+    state["current_area"] = args.area
+    kit.write_state(root, state)
+
+    print("Artefato criado: %s" % rel)
+    print("Gate %s registrado como in_progress em docs/STATE.md." % fase)
+    print("Preencha o template e marque status: proposed. Nunca approved.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

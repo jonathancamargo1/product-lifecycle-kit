@@ -1,0 +1,25 @@
+# Log de decisoes
+
+Append-only. Uma entrada por bloco, mais nova embaixo. Nunca edite uma entrada
+para apaga-la: para reverter, abra uma nova entrada que substitui a anterior.
+
+Status: PENDING bloqueia a fase que a originou (gate-check, codigo DC-01).
+DECIDED libera os paths listados em Afeta para guard-write e guard-commit.
+
+Formato exato de uma entrada. Os scripts ignoram o que esta dentro de blocos
+de codigo, entao este exemplo nao conta como decisao aberta:
+
+```text
+## D-0001 | 2026-08-26 | PENDING | Titulo da decisao
+Contexto: por que a decisao existe, em uma ou duas linhas.
+Opcoes: A ... / B ... / C ...
+Recomendacao do agente: B, porque ...
+Decisao: (preenchido pelo humano)
+Decidido por: (nome) em (data)
+Afeta: docs/_context/adr/0002.md
+```
+
+O campo Afeta aceita varios paths separados por virgula. So os paths listados
+sao liberados, e apenas para escritas cuja data seja igual ou posterior a data
+da decisao.
+
