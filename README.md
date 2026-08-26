@@ -1130,6 +1130,52 @@ gate-check: nenhuma ocorrencia.
 EXIT: 0
 ```
 
+### Encadeamento de hooks e merge de settings
+
+`proofs/encadeamento.sh`. A secao 13 exige que `install.sh` encadeie um hook de
+git que ja exista, em vez de sobrescrever, e que mescle os hooks num
+`.claude/settings.json` do projeto sem remover os que ja estavam la. Esta prova
+instala num repositorio que ja tem os dois.
+
+```text
+----- 1. O projeto ja tem um pre-commit proprio e hooks proprios -----
+$ cat .git/hooks/pre-commit
+#!/bin/sh
+echo "HOOK ANTERIOR DO PROJETO RODOU"
+exit 0
+EXIT: 0
+
+----- 2. Instalacao -----
+  hook pre-commit existente preservado em pre-commit.local e encadeado
+  .claude/settings.json existente teve os hooks mesclados
+Rodando gate-check no alvo.
+gate-check: nenhuma ocorrencia.
+Instalacao concluida. gate-check saiu com 0.
+
+----- 3. O hook do projeto foi preservado, nao sobrescrito -----
+$ cat .git/hooks/pre-commit.local
+#!/bin/sh
+echo "HOOK ANTERIOR DO PROJETO RODOU"
+exit 0
+EXIT: 0
+
+----- 4. settings.json: o hook do projeto continua la -----
+$ python3 lista os hooks de .claude/settings.json
+PreToolUse     meu-hook-do-projeto.sh
+PreToolUse     ${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-write.sh
+SessionStart   ${CLAUDE_PROJECT_DIR}/bin/lifecycle/session-open --agent claude-code
+Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
+
+----- 5. Num commit real, os dois rodam, o do projeto primeiro -----
+$ git commit -m primeiro commit
+HOOK ANTERIOR DO PROJETO RODOU
+gate-check: nenhuma ocorrencia.
+[main (root-commit) 88e04bd] primeiro commit
+ 1 file changed, 1 insertion(+)
+ create mode 100644 a.txt
+EXIT: 0
+```
+
 ### Varredura de caracteres e limites
 
 Nenhum arquivo do kit contem o caractere travessao longo nem emoji. Nenhum
