@@ -121,15 +121,15 @@ def main(argv=None):
                 "pessoa." % args.owner, 1)
 
     try:
-        estado_previo = kit.read_state(root)
+        state = kit.read_state(root)
     except ValueError as erro:
         kit.die("new-artifact: %s" % erro, 1)
-    if kit.required_phases(estado_previo.get("tier")) is None:
+    if kit.required_phases(state.get("tier")) is None:
         kit.die("new-artifact: tier nao declarado em docs/STATE.md (esta %r). "
                 "Sem tier, o kit nao sabe quais fases sao obrigatorias e o "
                 "sequenciamento fica desligado. Preencha tier: 1, 2 ou 3 e "
                 "rode de novo. Ver docs/_process/tiers.md."
-                % estado_previo.get("tier"), 1)
+                % state.get("tier"), 1)
 
     entradas = [p.strip() for p in args.inputs.split(",") if p.strip()]
     if not entradas and fase not in kit.PHASES_SEM_INPUTS:
@@ -149,11 +149,6 @@ def main(argv=None):
     modelo = Path(root) / "docs" / "_process" / "templates" / ("%s.md" % fase)
     if not modelo.exists():
         kit.die("new-artifact: template ausente: %s" % modelo, 1)
-
-    try:
-        state = kit.read_state(root)
-    except ValueError as erro:
-        kit.die("new-artifact: %s" % erro, 1)
 
     # Um artefato por gate (principio 7). Substituir um gate que ja tem
     # artefato e uma decisao explicita, nunca um efeito colateral de criar

@@ -272,28 +272,32 @@ fi
 # Vale tambem no --update: um projeto que vem de uma versao antiga do kit pode
 # nunca ter declarado o tier, e a partir do ST-05 todos os commits dele passam
 # a ser recusados pelo pre-commit. Ficar calado justamente ai seria o pior.
-TIER_ATUAL="$(sed -n 's/^tier:[[:space:]]*\([^ #]*\).*/\1/p' "$ALVO/docs/STATE.md" | head -1)"
-if [ "$TIER_ATUAL" = "null" ] || [ -z "$TIER_ATUAL" ]; then
-    if true; then
-        info ""
-        info "PROXIMOS PASSOS, nesta ordem:"
-        info ""
-        info "1. Abra docs/STATE.md e preencha dois campos:"
-        info "     project: <nome-do-projeto>"
-        info "     tier:    1, 2 ou 3     (ver docs/_process/tiers.md)"
-        info ""
-        info "   O tier decide quais fases sao obrigatorias. Enquanto ele for"
-        info "   null, o kit nao sabe o que exigir: new-artifact recusa criar"
-        info "   e gate-check acusa ST-05. Na duvida entre dois tiers, escolha"
-        info "   o maior."
-        info ""
-        info "2. Commite a instalacao:"
-        info "     git add -A && git commit -m \"instala o product-lifecycle-kit\""
-        info ""
-        info "3. Abra a primeira sessao:"
-        info "     bin/lifecycle/session-open --agent <codex|claude-code|human>"
-        info ""
-        info "Todo o resto do protocolo esta em AGENTS.md, na raiz."
-    fi
+if [ -f "$ALVO/docs/STATE.md" ]; then
+    TIER_ATUAL="$(sed -n 's/^tier:[[:space:]]*\([^ #]*\).*/\1/p' "$ALVO/docs/STATE.md" | head -1)"
+    case "$TIER_ATUAL" in
+        1|2|3) ;;
+        *)
+            info ""
+            info "ACAO NECESSARIA: tier nao declarado em docs/STATE.md."
+            info "  valor atual: ${TIER_ATUAL:-(ausente)}"
+            info ""
+            info "Abra docs/STATE.md e preencha os dois campos:"
+            info "     project: <nome-do-projeto>"
+            info "     tier:    1, 2 ou 3     (ver docs/_process/tiers.md)"
+            info ""
+            info "O tier decide quais fases sao obrigatorias. Enquanto ele nao"
+            info "for 1, 2 ou 3, new-artifact recusa criar artefato e o"
+            info "gate-check acusa ST-05, o que faz o pre-commit recusar"
+            info "qualquer commit. Na duvida entre dois tiers, escolha o maior."
+            if [ "$UPDATE" -eq 0 ]; then
+                info ""
+                info "Depois disso, commite a instalacao e abra a primeira sessao:"
+                info "     git add -A && git commit -m \"instala o product-lifecycle-kit\""
+                info "     bin/lifecycle/session-open --agent <codex|claude-code|human>"
+                info ""
+                info "Todo o resto do protocolo esta em AGENTS.md, na raiz."
+            fi
+            ;;
+    esac
 fi
 exit $CODIGO
