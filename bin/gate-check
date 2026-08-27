@@ -132,7 +132,10 @@ def check_state(root, report):
     # Sem tier declarado, required_phases devolve None e SQ-01 nunca roda: o
     # sequenciamento fica desligado em silencio. Um projeto recem instalado,
     # ainda sem gate nenhum, nao e cobrado; a partir do primeiro artefato, sim.
-    tem_trabalho = bool(state.get("gates")) or bool(state.get("current_phase"))
+    # Artefato em disco conta como trabalho mesmo com o STATE.md intocado: no
+    # modo reverso o backfill escreve os artefatos antes de mexer no estado.
+    tem_trabalho = (bool(state.get("gates")) or bool(state.get("current_phase"))
+                    or bool(artifacts(root)))
     if tem_trabalho and kit.required_phases(state.get("tier")) is None:
         report.erro("ST-05", "docs/STATE.md", state_line(root, "tier"),
                     "tier %r nao e 1, 2 nem 3. Sem tier declarado o "
@@ -203,17 +206,16 @@ def check_sequence(root, report, state, fase_alvo=None):
         return
     gates = state.get("gates") or {}
 
-    # Toda fase em andamento e verificada, nao so a current_phase. Um gate
-    # in_progress ou proposed ja e uma fase aberta, e no modo reverso o
-    # STATE.md e preenchido a mao, muitas vezes sem current_phase nenhuma.
+    # Apenas a fase corrente e a fase que se quer iniciar. Varrer todo gate
+    # aberto parece mais rigoroso, mas colide com a chave dos gates ser so a
+    # fase (Q2): quando uma segunda area comeca uma fase anterior, ela
+    # sobrescreve aquele gate, e todo gate posterior ainda aberto passaria a
+    # falhar. O projeto travaria sem poder commitar nem fechar a sessao.
     em_andamento = []
+    if state.get("current_phase"):
+        em_andamento.append(str(state["current_phase"]))
     if fase_alvo:
         em_andamento.append(str(fase_alvo))
-    elif state.get("current_phase"):
-        em_andamento.append(str(state["current_phase"]))
-    for slug, gate in (gates or {}).items():
-        if (gate or {}).get("status") in ("in_progress", "proposed"):
-            em_andamento.append(slug)
     if not em_andamento:
         return
 
@@ -389,9 +391,7 @@ def main(argv=None):
 
     check_frontmatter(root, report)
     state = check_state(root, report)
-    check_sequence(root, report, state)
-    if fase_alvo:
-        check_sequence(root, report, state, fase_alvo=fase_alvo)
+    check_sequence(root, report, state, fase_alvo=fase_alvo)
     check_decisions(root, report, state)
     check_vocabulary(root, report)
     check_dirs(root, report)

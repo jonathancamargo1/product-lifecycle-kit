@@ -232,42 +232,46 @@ class TestSequencia(GateCheckBase):
         self.write_state(state)
         self.assertNoCode(self.check(), "SQ-01")
 
-    def test_sq01_olha_gates_em_andamento_nao_so_current_phase(self):
-        """No modo reverso o STATE.md e preenchido a mao, sem current_phase.
+    def test_sq01_nao_trava_segunda_area_na_mesma_fase(self):
+        """Regressao: gates sao chaveados so pela fase (Q2).
 
-        Um gate in_progress ja e uma fase em andamento: se SQ-01 so olhasse
-        current_phase, backfill feito a mao passaria sem sequenciamento.
+        Quando a area B comeca a fase 01, ela sobrescreve o gate 01 que era da
+        area A. Se SQ-01 varresse todo gate aberto, o gate 13 da area A, ainda
+        em andamento, passaria a exigir um 01 que agora esta in_progress, e o
+        projeto travaria: nem commit, nem session-close.
         """
-        ctx = self.write_artifact("nucleo", "01-contexto", "contexto",
-                                  status="proposed")
-        build = self.write_artifact("nucleo", "13-build-log", "build",
+        ctx = self.write_artifact("areaA", "01-contexto", "contexto-a",
+                                  status="approved", approved_by="Jonathan Camargo",
+                                  approved_at="2026-08-26")
+        build = self.write_artifact("areaA", "13-build-log", "build-a",
                                     inputs=[ctx])
+        novo_ctx = self.write_artifact("areaB", "01-contexto", "contexto-b")
         estado = dict(DEFAULT_STATE)
-        estado["current_phase"] = None
+        estado["current_phase"] = "01-contexto"
+        estado["current_area"] = "areaB"
         estado["gates"] = {
-            "01-contexto": {"status": "proposed", "evidence": ctx,
+            "01-contexto": {"status": "in_progress", "evidence": novo_ctx,
                             "by": None, "date": None},
             "13-build-log": {"status": "in_progress", "evidence": build,
                              "by": None, "date": None}}
         self.write_state(estado)
         result = self.check()
-        self.assertCode(result, "SQ-01")
-        self.assertEqual(result.returncode, 1)
+        self.assertNoCode(result, "SQ-01")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_sq01_nao_reclama_de_gate_ja_aprovado(self):
+    def test_phase_nao_duplica_ocorrencia_de_sq01(self):
+        """--phase nao pode reportar a mesma fase duas vezes."""
         ctx = self.write_artifact("nucleo", "01-contexto", "contexto",
-                                  status="approved", approved_by="Jonathan Camargo",
-                                  approved_at="2026-08-26")
-        build = self.write_artifact("nucleo", "13-build-log", "build",
-                                    inputs=[ctx])
+                                  status="proposed")
         estado = dict(DEFAULT_STATE)
-        estado["gates"] = {
-            "01-contexto": {"status": "approved", "evidence": ctx,
-                            "by": "Jonathan Camargo", "date": "2026-08-26"},
-            "13-build-log": {"status": "in_progress", "evidence": build,
-                             "by": None, "date": None}}
+        estado["current_phase"] = "13-build-log"
+        estado["gates"] = {"01-contexto": {"status": "proposed", "evidence": ctx,
+                                           "by": None, "date": None}}
         self.write_state(estado)
-        self.assertNoCode(self.check(), "SQ-01")
+        linhas = [l for l in self.check("--phase", "13-build").stdout.splitlines()
+                  if l.startswith("[SQ-01]")]
+        self.assertEqual(len(linhas), 1, "esperava uma ocorrencia, veio %d:\n%s"
+                         % (len(linhas), "\n".join(linhas)))
 
     def test_phase_recusa_iniciar_sem_gate_anterior(self):
         path = self.write_artifact("nucleo", "01-contexto", "contexto",
@@ -338,6 +342,16 @@ class TestTierDeclarado(GateCheckBase):
         result = self.check()
         self.assertNoCode(result, "ST-05")
         self.assertEqual(result.returncode, 0)
+
+    def test_st05_pega_artefato_em_disco_com_state_intocado(self):
+        """Modo reverso: backfill escreve artefatos antes de mexer no STATE.md."""
+        self.write_artifact("nucleo", "01-contexto", "contexto")
+        estado = dict(DEFAULT_STATE)
+        estado["tier"] = None
+        self.write_state(estado)
+        result = self.check()
+        self.assertCode(result, "ST-05")
+        self.assertEqual(result.returncode, 1)
 
     def test_st05_falha_com_current_phase_e_sem_tier(self):
         estado = dict(DEFAULT_STATE)

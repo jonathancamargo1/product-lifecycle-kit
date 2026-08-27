@@ -374,6 +374,10 @@ quando o projeto ja tem gate registrado ou `current_phase` definida e o `tier`
 nao e 1, 2 nem 3. Projeto recem instalado, ainda sem trabalho nenhum, nao e
 cobrado, senao o `gate-check` que o `install.sh` roda no fim ja acusaria.
 
+`tem_trabalho` considera tres sinais: gate registrado, `current_phase`
+definida, ou qualquer artefato em `docs/areas/`. O terceiro cobre o modo
+reverso, em que o backfill escreve os artefatos antes de mexer no estado.
+
 Alem disso, `new-artifact` recusa criar sem tier declarado, e `install.sh`
 termina imprimindo os proximos passos, com o preenchimento de `project` e
 `tier` em primeiro lugar. E o terceiro codigo fora da tabela da secao 8, junto
@@ -382,6 +386,20 @@ com IN-03 (Q6) e ST-04 (Q21).
 A alternativa seria o `install.sh` perguntar o tier na instalacao. Foi
 descartada: `install.sh` precisa rodar sem terminal interativo, dentro de uma
 sessao de agente.
+
+O que ST-05 nao cobre, e vale saber: ele obriga a declarar o tier, mas o
+SQ-01 continua olhando apenas a `current_phase`. Um `STATE.md` preenchido a
+mao, com gates registrados e sem `current_phase`, tem o tier cobrado mas nao
+tem o sequenciamento verificado.
+
+Ampliar o SQ-01 para varrer todo gate aberto foi tentado e revertido, porque
+colide de frente com Q2: os gates sao chaveados so pela fase, entao quando uma
+segunda area comeca uma fase anterior ela sobrescreve aquele gate, e todo gate
+posterior ainda aberto passaria a falhar. O efeito medido foi um projeto
+travado, sem poder commitar nem fechar a sessao, depois de um `new-artifact`
+que tinha acabado de suceder. O teste
+`test_sq01_nao_trava_segunda_area_na_mesma_fase` existe para impedir que
+alguem tente de novo sem resolver Q2 antes.
 
 Efeito: `bin/gate-check`, `bin/new-artifact`, `install.sh`,
 `bin/tests/test_gate_check.py`, `bin/tests/test_new_artifact.py`.
