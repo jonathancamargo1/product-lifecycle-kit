@@ -280,6 +280,21 @@ class TestCommitDaSessaoPegaTudo(SessionBase):
                       "o session-close mexeu no staging do agente")
 
 
+class TestSessionCloseDuranteMerge(SessionBase):
+    def test_fecha_sessao_com_merge_em_andamento(self):
+        """git recusa commit parcial durante merge: o fechamento nao pode travar."""
+        self.git_init()
+        self.abre()
+        self.write_artifact("nucleo", "01-contexto", "contexto")
+        sha = self._git("rev-parse", "HEAD").stdout.strip()
+        (self.root / ".git" / "MERGE_HEAD").write_text(sha + "\n",
+                                                       encoding="utf-8")
+        nome = self.handoff()
+        result = self.run_script("session-close", "--handoff", nome)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("session_open: false", self.state_text())
+
+
 class TestDecide(SessionBase):
     def test_cria_entrada_pendente_e_bloqueia_o_estado(self):
         result = self.run_script(

@@ -292,6 +292,50 @@ class TestArquivoBinarioEmStaging(KitTestCase):
         self.assertIn(result.returncode, (0, 1))
 
 
+class TestClassificacaoDeCodigo(KitTestCase):
+    def commit_msg(self, mensagem):
+        (self.root / "MSG").write_text(mensagem, encoding="utf-8")
+        return subprocess.run(
+            [sys.executable, str(KIT_ROOT / "git-hooks" / "commit-msg"), "MSG"],
+            cwd=str(self.root), capture_output=True, text=True)
+
+    def test_ci_e_build_nao_sao_codigo_do_produto(self):
+        """Barrar config de CI so ensina a autorizar no automatico."""
+        self.git_init()
+        (self.root / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+        (self.root / ".github" / "workflows" / "ci.yml").write_text(
+            "on: push\n", encoding="utf-8")
+        (self.root / "Makefile").write_text("all:\n\techo\n", encoding="utf-8")
+        (self.root / "package.json").write_text("{}\n", encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=str(self.root), capture_output=True)
+        result = self.commit_msg("configura o CI\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_projeto_pode_ajustar_a_lista(self):
+        """code-paths.md e do projeto: da para declarar que um path e codigo."""
+        self.git_init()
+        alvo = self.root / "docs" / "_process" / "code-paths.md"
+        alvo.write_text(
+            "# codigo\n\n```non-code-globs\ndocs/**\n```\n", encoding="utf-8")
+        (self.root / "Makefile").write_text("all:\n", encoding="utf-8")
+        subprocess.run(["git", "add", "Makefile"], cwd=str(self.root),
+                       capture_output=True)
+        self.assertEqual(self.commit_msg("mexe no build\n").returncode, 1,
+                         "a lista do projeto nao foi respeitada")
+
+    def test_nome_de_arquivo_nao_utf8_nao_derruba_o_hook(self):
+        self.git_init()
+        import os
+        bruto = os.path.join(str(self.root), "src")
+        os.makedirs(bruto, exist_ok=True)
+        nome = os.path.join(bruto.encode(), b"lat\xedn.py")
+        with open(nome, "wb") as fh:
+            fh.write(b"x = 1\n")
+        subprocess.run(["git", "add", "-A"], cwd=str(self.root), capture_output=True)
+        result = self.commit_msg("adiciona arquivo\n")
+        self.assertNotIn("Traceback", result.stderr, result.stderr[-300:])
+
+
 class TestPh01(KitTestCase):
     def test_ph01_avisa_e_nao_derruba_o_exit_code(self):
         self.git_init()

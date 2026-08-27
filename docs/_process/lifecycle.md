@@ -58,6 +58,11 @@ O registro vive na mensagem do commit, entao reescrita de historico
 (`--amend`, rebase) pode apaga-lo, e `--no-verify` pula os hooks. Garantia
 forte contra isso e protecao de branch no servidor, fora do alcance do kit.
 
+O que conta como codigo do produto esta em `code-paths.md`, e e do projeto:
+configuracao de CI, arquivo de build, lockfile e documentacao de raiz ficam de
+fora por padrao. Barrar isso so ensinaria o time a autorizar no automatico, e
+autorizacao que vira rotina para de significar alguma coisa.
+
 Rode `bin/lifecycle/plan` para ver o que falta ate a fase de build.
 
 ## Modo reverso

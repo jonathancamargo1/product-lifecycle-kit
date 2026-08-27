@@ -39,17 +39,43 @@ PHASES_SEM_INPUTS = ("01-contexto", "02-discovery")
 # aprovado. Depois dela (review, ship) codigo continua legitimo.
 CODE_PHASE_FROM = 13
 
-# Caminhos que sao do kit ou do processo, nao do produto.
-NON_CODE_PREFIXES = ("docs/", ".claude/", "bin/lifecycle/", "proofs/")
-NON_CODE_FILES = ("AGENTS.md", "CLAUDE.md", ".gitignore", "README.md",
-                  "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md")
+# Fallback usado quando docs/_process/code-paths.md nao existe (kit antigo).
+DEFAULT_NON_CODE = ("docs/**", ".claude/**", ".github/**", "bin/lifecycle/**",
+                    "proofs/**", "AGENTS.md", "CLAUDE.md", "README.md",
+                    "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md", ".gitignore",
+                    "Makefile", "package.json", "pyproject.toml")
 CODE_TRAILER = "Sem-fase:"
 
 
-def is_code_path(rel_path):
-    if rel_path in NON_CODE_FILES:
-        return False
-    return not any(rel_path.startswith(p) for p in NON_CODE_PREFIXES)
+def non_code_globs(root):
+    """Padroes do que nao e codigo do produto, de docs/_process/code-paths.md."""
+    caminho = Path(root) / "docs" / "_process" / "code-paths.md"
+    if not caminho.exists():
+        return list(DEFAULT_NON_CODE)
+    dentro = False
+    padroes = []
+    try:
+        linhas = caminho.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return list(DEFAULT_NON_CODE)
+    for linha in linhas:
+        if linha.strip().startswith("```"):
+            if not dentro and "non-code-globs" in linha:
+                dentro = True
+                continue
+            if dentro:
+                break
+            continue
+        if dentro:
+            texto = linha.strip()
+            if texto and not texto.startswith("#"):
+                padroes.append(texto)
+    return padroes or list(DEFAULT_NON_CODE)
+
+
+def is_code_path(rel_path, root=None):
+    padroes = non_code_globs(root) if root is not None else list(DEFAULT_NON_CODE)
+    return not any(glob_matches(p, rel_path) for p in padroes)
 
 
 def code_phase_open(state):
@@ -63,9 +89,17 @@ def code_phase_open(state):
         return False
 
 
+PH01_JANELA = 500
+
+
 def commits_sem_fase(root):
-    """Quantos commits do historico carregam o trailer de autorizacao."""
-    resultado = git(root, "log", "--grep", "^%s" % CODE_TRAILER, "--oneline")
+    """Autorizacoes nos ultimos PH01_JANELA commits.
+
+    Janela em vez de historico inteiro porque isto roda no pre-commit, em todo
+    commit: varrer anos de historico taxaria cada commit do projeto.
+    """
+    resultado = git(root, "log", "-n", str(PH01_JANELA),
+                    "--grep", "^%s" % CODE_TRAILER, "--oneline")
     if resultado.returncode != 0:
         return 0
     return len([l for l in resultado.stdout.splitlines() if l.strip()])
@@ -93,7 +127,7 @@ STATE_COMMENTS = {
 }
 
 DEFAULT_PROTECTED_GLOBS = ["docs/_context/CONTEXT.md", "docs/_process/**",
-                           "AGENTS.md", "docs/AGENTS.md"]
+                           "AGENTS.md", "docs/AGENTS.md", "bin/lifecycle/**"]
 
 SESSION_AGENTS = ("codex", "claude-code", "human")
 
@@ -745,6 +779,24 @@ def head_content(root, rel_path):
     except UnicodeDecodeError:
         # Binario nao tem frontmatter, entao nao e artefato nem ADR.
         return ""
+
+
+def merge_em_andamento(root):
+    resultado = git(root, "rev-parse", "--absolute-git-dir")
+    if resultado.returncode != 0 or not resultado.stdout.strip():
+        return False
+    return (Path(resultado.stdout.strip()) / "MERGE_HEAD").exists()
+
+
+def staged_under(root, prefixo):
+    """Paths em staging sob um prefixo, com -z para sobreviver a acento."""
+    resultado = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "-z", "--", prefixo],
+        cwd=str(root), capture_output=True)
+    if resultado.returncode != 0:
+        return []
+    bruto = resultado.stdout.decode("utf-8", "surrogateescape")
+    return [p for p in bruto.split("\0") if p]
 
 
 def staged_files(root):

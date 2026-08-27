@@ -145,11 +145,15 @@ def main(argv=None):
     # handoff nasce sempre assim. O pathspec no commit continua garantindo que
     # o que o agente deixou em staging fora de docs/ nao entre no commit da
     # sessao nem arraste a regra de fase para codigo.
-    docs_em_staging = [linha for linha in kit.git(
-        root, "diff", "--cached", "--name-only", "--", "docs"
-    ).stdout.splitlines() if linha.strip()]
+    docs_em_staging = kit.staged_under(root, "docs")
     kit.git(root, "add", "docs")
-    commit = kit.git(root, "commit", "-m", mensagem, "--", "docs")
+    # Commit parcial (com pathspec) e recusado pelo git durante um merge. Nesse
+    # caso vale commitar tudo que esta em staging: e o que o merge ja juntou, e
+    # travar o fechamento da sessao seria pior.
+    if kit.merge_em_andamento(root):
+        commit = kit.git(root, "commit", "-m", mensagem)
+    else:
+        commit = kit.git(root, "commit", "-m", mensagem, "--", "docs")
     if commit.returncode != 0:
         sys.stdout.write(commit.stdout)
         sys.stderr.write(commit.stderr)

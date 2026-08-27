@@ -133,14 +133,17 @@ def fase_para_codigo(root, mensagem):
 
     # -z porque --name-only poe path nao ASCII entre aspas, e "docs/decisao.md"
     # com aspas deixa de casar com o prefixo docs/.
+    # Sem text=True: nome de arquivo com byte nao UTF-8 levantaria
+    # UnicodeDecodeError e bloquearia todo commit do repositorio.
     resultado = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "-z",
          "--diff-filter=ACMRTD"],
-        cwd=str(root), capture_output=True, text=True)
+        cwd=str(root), capture_output=True)
     if resultado.returncode != 0:
         return None
-    codigo = [p for p in resultado.stdout.split("\0")
-              if p and kit.is_code_path(p)]
+    bruto = resultado.stdout.decode("utf-8", "surrogateescape")
+    codigo = [p for p in bruto.split("\0")
+              if p and kit.is_code_path(p, root)]
     if not codigo:
         return None
     if kit.code_phase_open(state):
