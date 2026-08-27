@@ -97,3 +97,61 @@ class TestCicloComHooks(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestManifestoNaoLiberaCustomizacao(unittest.TestCase):
+    """O manifesto so pode listar o que o kit de fato entregou naquele path.
+
+    Registrar o hash do kit para um arquivo que o projeto customizou daria ao
+    guard-commit licenca para trocar a customizacao pela versao do kit sem
+    decisao nenhuma, que e o oposto do que a protecao existe para fazer.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="plk-man-")
+        self.root = Path(self.tmp)
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        subprocess.run(["git", "init", "-q", "-b", "main", "."],
+                       cwd=self.tmp, capture_output=True, text=True)
+        self.instala()
+
+    def instala(self, *extra):
+        return subprocess.run(
+            [str(KIT_ROOT / "install.sh"), str(self.root), "--adapters", "none"]
+            + list(extra), capture_output=True, text=True)
+
+    def manifesto(self):
+        texto = (self.root / "docs" / ".kit-manifest").read_text(encoding="utf-8")
+        return dict((l.split("  ", 1)[1], l.split("  ", 1)[0])
+                    for l in texto.splitlines() if "  " in l)
+
+    def soma_do_kit(self, rel):
+        import hashlib
+        return hashlib.sha256(
+            (KIT_ROOT / rel).read_bytes()).hexdigest()
+
+    def test_agents_customizado_nao_entra_no_manifesto_com_o_hash_do_kit(self):
+        alvo = self.root / "AGENTS.md"
+        alvo.write_text("# AGENTS do projeto\n\nregra nossa.\n", encoding="utf-8")
+        saida = self.instala("--update")
+        self.assertEqual(saida.returncode, 0, saida.stdout + saida.stderr)
+        entrada = self.manifesto().get("AGENTS.md")
+        self.assertNotEqual(
+            entrada, self.soma_do_kit("docs/AGENTS.md"),
+            "manifesto liberou a troca do AGENTS.md customizado pelo do kit")
+
+    def test_agents_intocado_continua_no_manifesto(self):
+        saida = self.instala("--update")
+        self.assertEqual(saida.returncode, 0, saida.stdout + saida.stderr)
+        self.assertEqual(self.manifesto().get("AGENTS.md"),
+                         self.soma_do_kit("docs/AGENTS.md"))
+
+    def test_processo_customizado_nao_entra_no_manifesto_com_o_hash_do_kit(self):
+        alvo = self.root / "docs" / "_process" / "gates.md"
+        alvo.write_text("# gates do projeto\n", encoding="utf-8")
+        saida = self.instala("--update")
+        self.assertEqual(saida.returncode, 0, saida.stdout + saida.stderr)
+        self.assertNotEqual(
+            self.manifesto().get("docs/_process/gates.md"),
+            self.soma_do_kit("docs/_process/gates.md"),
+            "manifesto liberou a troca de um arquivo de processo customizado")

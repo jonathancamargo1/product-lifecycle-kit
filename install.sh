@@ -181,9 +181,11 @@ else
         REVISAR="$REVISAR AGENTS.md (editado pelo projeto, regras novas nao entraram)\n"
     fi
     [ -f "$ALVO/docs/STATE.md" ] && printf '%s  %s\n' "$(soma "$ALVO/docs/STATE.md")" "docs/STATE.md" >> "$MANIFESTO.novo"
-    # Mesmo motivo do copia_atualizavel: o manifesto guarda o que o kit
-    # instalaria, para a customizacao continuar detectavel no proximo update.
-    [ -f "$ALVO/AGENTS.md" ] && printf '%s  %s\n' "$(soma "$KIT_DIR/docs/AGENTS.md")" "AGENTS.md" >> "$MANIFESTO.novo"
+    # AGENTS.md customizado nao entra no manifesto com o hash do kit: isso
+    # daria ao guard-commit licenca para trocar a customizacao pela versao do
+    # kit sem decisao. Quem detecta customizacao aqui e agents_intocado, que
+    # compara com AGENTS_PUBLICADOS, nao o manifesto.
+    registra_se_identico "$KIT_DIR/docs/AGENTS.md" "$ALVO/AGENTS.md" "AGENTS.md"
 fi
 
 # 3. scripts, sem os testes do kit
