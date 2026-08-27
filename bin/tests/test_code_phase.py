@@ -312,16 +312,32 @@ class TestClassificacaoDeCodigo(KitTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_projeto_pode_ajustar_a_lista(self):
-        """code-paths.md e do projeto: da para declarar que um path e codigo."""
-        self.git_init()
+        """code-paths.md e do projeto: da para declarar que um path e codigo.
+
+        A lista precisa estar commitada para valer: o hook le de HEAD, senao
+        uma edicao nao commitada desligaria a regra sem deixar rastro.
+        """
         alvo = self.root / "docs" / "_process" / "code-paths.md"
         alvo.write_text(
             "# codigo\n\n```non-code-globs\ndocs/**\n```\n", encoding="utf-8")
+        self.git_init()
         (self.root / "Makefile").write_text("all:\n", encoding="utf-8")
         subprocess.run(["git", "add", "Makefile"], cwd=str(self.root),
                        capture_output=True)
         self.assertEqual(self.commit_msg("mexe no build\n").returncode, 1,
                          "a lista do projeto nao foi respeitada")
+
+    def test_edicao_nao_commitada_da_lista_nao_desliga_a_regra(self):
+        """O arquivo e protegido: mexer nele sem commitar nao vale nada."""
+        self.git_init()
+        (self.root / "docs" / "_process" / "code-paths.md").write_text(
+            "# codigo\n\n```non-code-globs\nsrc/**\n```\n", encoding="utf-8")
+        (self.root / "src").mkdir(exist_ok=True)
+        (self.root / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "src/app.py"], cwd=str(self.root),
+                       capture_output=True)
+        self.assertEqual(self.commit_msg("mexe no codigo\n").returncode, 1,
+                         "edicao nao commitada da politica desligou a regra")
 
     def test_nome_de_arquivo_nao_utf8_nao_derruba_o_hook(self):
         self.git_init()

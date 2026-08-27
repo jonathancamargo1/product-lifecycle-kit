@@ -95,7 +95,7 @@ garantias que existem sem rede de seguranca de runtime:
 - o `commit-msg` recusa `sessao 99` quando o `session_counter` nao bate (8), e
   a mesma mudanca passa com uma mensagem que nao e de sessao (8a).""", "prova-b.out"),
     ("### Modo C: atualizacao", """`proofs/modo-c-update.sh`. Com o projeto `prova-b` ja instalado na versao
-1.0.0, monta uma copia temporaria do kit na versao 1.1.0, com a secao
+1.1.0, monta uma copia temporaria do kit na versao 1.2.0, com a secao
 correspondente no `CHANGELOG.md`, e roda o `install.sh` dessa copia com
 `--update`.
 
@@ -139,7 +139,7 @@ ocorrencia e a varredura acusaria a si mesma.""", "varredura.out"),
 prova = ["""
 ## Prova de funcionamento
 
-Tudo abaixo e saida real, colada sem edicao, gerada com o kit na versao 1.0.0.
+Tudo abaixo e saida real, colada sem edicao, gerada com o kit na versao 1.1.0.
 Os scripts que produzem cada bloco estao em `proofs/` e podem ser rodados de
 novo do zero. Nenhum deles altera o kit: a prova do modo C monta a versao nova
 numa copia temporaria, justamente para que os outros blocos continuem
@@ -152,7 +152,7 @@ partes.append("".join(prova))
 partes.append("""
 ## Antes de instalar num projeto real
 
-1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 27, e cada um registra uma
+1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 29, e cada um registra uma
    decisao tomada por interpretacao conservadora, nao por certeza.
 2. Rode a prova do modo B voce mesmo, do zero, sem olhar esta secao. E o modo
    sem rede de seguranca de runtime: se funciona ali, funciona em qualquer

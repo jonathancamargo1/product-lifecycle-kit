@@ -74,9 +74,12 @@ bin/lifecycle/plan
 ```
 
 Compara as fases obrigatorias do tier com os gates que existem e imprime as
-que faltam, em ordem, com a proxima acao pronta para copiar. E o unico lugar
-que mostra o buraco: o painel da area lista o que existe, e o `gate-check`
-verifica o que existe. Nenhum dos dois sabe dizer o que nunca foi comecado.
+que faltam, em ordem, com a proxima acao pronta para copiar, e sem depender de
+abrir o README de uma area.
+
+O painel da area tambem lista as fases pendentes, mas so as daquela area. O
+`gate-check` continua sendo outra coisa: ele verifica o que existe, e nao
+reclama do que nunca foi comecado.
 
 ## Duvida de negocio
 

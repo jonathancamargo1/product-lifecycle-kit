@@ -45,9 +45,12 @@ scripts sao reenviados ao alvo e `docs/KIT_VERSION` sobe, sem tocar em estado,
 contexto, handoffs ou artefatos.
 
 """ % nova
-marcador = "## 1.0.0"
-if ("## %s" % nova) not in texto:
-    changelog.write_text(texto.replace(marcador, entrada + marcador, 1),
+# A entrada precisa entrar em cima de tudo: o install.sh mostra a primeira
+# secao "## " do CHANGELOG, entao um marcador de versao fixo colocaria a
+# entrada nova embaixo da anterior e a prova mostraria o changelog errado.
+corte = texto.find("\n## ")
+if ("## %s" % nova) not in texto and corte != -1:
+    changelog.write_text(texto[:corte + 1] + entrada + texto[corte + 1:],
                          encoding="utf-8")
 print("copia do kit montada na versao %s. O kit real segue intocado." % nova)
 PY

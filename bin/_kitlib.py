@@ -40,24 +40,40 @@ PHASES_SEM_INPUTS = ("01-contexto", "02-discovery")
 CODE_PHASE_FROM = 13
 
 # Fallback usado quando docs/_process/code-paths.md nao existe (kit antigo).
+# Espelha docs/_process/code-paths.md, que e a fonte. Este fallback so vale
+# quando o arquivo nao existe (kit antigo), e divergir dele faria o fallback
+# barrar justamente o que o arquivo diz para nunca barrar.
 DEFAULT_NON_CODE = ("docs/**", ".claude/**", ".github/**", "bin/lifecycle/**",
                     "proofs/**", "AGENTS.md", "CLAUDE.md", "README.md",
-                    "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md", ".gitignore",
-                    "Makefile", "package.json", "pyproject.toml")
+                    "LICENSE", "LICENSE.md", "CONTRIBUTING.md", "CHANGELOG.md",
+                    ".gitignore", ".gitattributes", ".editorconfig", "Makefile",
+                    "Dockerfile", "docker-compose.yml", "package.json",
+                    "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
+                    "pyproject.toml", "poetry.lock", "requirements.txt",
+                    "tsconfig.json")
 CODE_TRAILER = "Sem-fase:"
 
 
 def non_code_globs(root):
-    """Padroes do que nao e codigo do produto, de docs/_process/code-paths.md."""
-    caminho = Path(root) / "docs" / "_process" / "code-paths.md"
-    if not caminho.exists():
-        return list(DEFAULT_NON_CODE)
+    """Padroes do que nao e codigo do produto, de docs/_process/code-paths.md.
+
+    Le a versao em HEAD, nao a do diretorio de trabalho: o arquivo e protegido,
+    e uma edicao nao commitada poderia desligar a regra para aquele commit sem
+    deixar rastro em lugar nenhum.
+    """
+    rel = "docs/_process/code-paths.md"
+    texto = head_content(root, rel)
+    if texto is None:
+        caminho = Path(root) / rel
+        if not caminho.exists():
+            return list(DEFAULT_NON_CODE)
+        try:
+            texto = caminho.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return list(DEFAULT_NON_CODE)
     dentro = False
     padroes = []
-    try:
-        linhas = caminho.read_text(encoding="utf-8").splitlines()
-    except (OSError, UnicodeDecodeError):
-        return list(DEFAULT_NON_CODE)
+    linhas = texto.splitlines()
     for linha in linhas:
         if linha.strip().startswith("```"):
             if not dentro and "non-code-globs" in linha:
@@ -95,11 +111,17 @@ PH01_JANELA = 500
 def commits_sem_fase(root):
     """Autorizacoes nos ultimos PH01_JANELA commits.
 
-    Janela em vez de historico inteiro porque isto roda no pre-commit, em todo
-    commit: varrer anos de historico taxaria cada commit do projeto.
+    A janela e um intervalo de revisoes, nao um -n: `-n` limita quantos
+    resultados aparecem, nao quanto historico o git percorre, entao nao
+    limitaria o custo nem seria janela de verdade. Isto roda no pre-commit, em
+    todo commit, entao o custo importa.
     """
-    resultado = git(root, "log", "-n", str(PH01_JANELA),
-                    "--grep", "^%s" % CODE_TRAILER, "--oneline")
+    base = git(root, "rev-parse", "HEAD~%d" % PH01_JANELA)
+    if base.returncode == 0 and base.stdout.strip():
+        alvo = "%s..HEAD" % base.stdout.strip()
+    else:
+        alvo = "HEAD"
+    resultado = git(root, "log", alvo, "--grep", "^%s" % CODE_TRAILER, "--oneline")
     if resultado.returncode != 0:
         return 0
     return len([l for l in resultado.stdout.splitlines() if l.strip()])

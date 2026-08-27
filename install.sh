@@ -74,10 +74,24 @@ copia() {
     mkdir -p "$(dirname "$destino")"
     if [ -e "$destino" ] && [ "$UPDATE" -eq 0 ]; then
         PULADOS="$PULADOS$rel\n"
+        registra_se_identico "$origem" "$destino" "$rel"
         return 0
     fi
     cp "$origem" "$destino"
     printf '%s  %s\n' "$(soma "$destino")" "$rel" >> "$MANIFESTO.novo"
+}
+
+registra_se_identico() {
+    # O manifesto so pode registrar o que o kit REALMENTE entregou naquele
+    # path. Registrar o hash do kit para um arquivo que o projeto customizou
+    # daria ao guard-commit licenca para substituir a customizacao pela versao
+    # do kit sem decisao nenhuma, que e o oposto do que a protecao existe para
+    # fazer. Se o conteudo e identico, registrar e correto e inofensivo.
+    local origem="$1" destino="$2" rel="$3"
+    [ -f "$destino" ] || return 0
+    if [ "$(soma "$destino")" = "$(soma "$origem")" ]; then
+        printf '%s  %s\n' "$(soma "$destino")" "$rel" >> "$MANIFESTO.novo"
+    fi
 }
 
 copia_atualizavel() {
@@ -85,18 +99,13 @@ copia_atualizavel() {
     local origem="$1" rel="$2" destino="$ALVO/$2"
     if [ "$UPDATE" -eq 1 ] && customizado "$rel"; then
         REVISAR="$REVISAR$rel\n"
-        # Guarda o hash do arquivo DO KIT, nao o do alvo customizado: gravar o
-        # customizado faria o proximo update concluir que ninguem mexeu, e
-        # sobrescrever a customizacao em silencio.
-        printf '%s  %s\n' "$(soma "$origem")" "$rel" >> "$MANIFESTO.novo"
+        registra_se_identico "$origem" "$destino" "$rel"
         return 0
     fi
     mkdir -p "$(dirname "$destino")"
     if [ -e "$destino" ] && [ "$UPDATE" -eq 0 ]; then
         PULADOS="$PULADOS$rel\n"
-        # Mesmo motivo do ramo de update: gravar o hash do alvo faria o proximo
-        # update concluir que o arquivo veio do kit e sobrescrever o do projeto.
-        printf '%s  %s\n' "$(soma "$origem")" "$rel" >> "$MANIFESTO.novo"
+        registra_se_identico "$origem" "$destino" "$rel"
         return 0
     fi
     cp "$origem" "$destino"
