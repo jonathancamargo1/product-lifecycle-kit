@@ -121,13 +121,18 @@ class TestBordas(KitTestCase):
     def test_kitlib_antigo_nao_derruba_o_hook(self):
         """Hook novo com _kitlib sem as funcoes novas degrada, nao explode."""
         self.git_init()
+        # Usa o _kitlib da 1.0.0 de verdade, do historico do proprio kit, em vez
+        # de recortar o atual: recorte por indice de string ja tinha comido
+        # metade do modulo sem ninguem notar.
+        antigo = subprocess.run(
+            ["git", "show", "981d293:bin/_kitlib.py"], cwd=str(KIT_ROOT),
+            capture_output=True, text=True)
+        if antigo.returncode != 0:
+            self.skipTest("historico do kit indisponivel para pegar a 1.0.0")
         lib = self.root / "bin" / "lifecycle" / "_kitlib.py"
-        texto = lib.read_text(encoding="utf-8")
-        for nome in ("def is_code_path", "def code_phase_open", "def commits_sem_fase"):
-            i = texto.index(nome)
-            fim = texto.index("\n\n\n", i)
-            texto = texto[:i] + texto[fim + 3:]
-        lib.write_text(texto, encoding="utf-8")
+        lib.write_text(antigo.stdout, encoding="utf-8")
+        self.assertNotIn("def is_code_path", antigo.stdout,
+                         "a 1.0.0 nao deveria ter a funcao nova")
         self._codigo()
         result = self.commit_msg("qualquer coisa\n")
         self.assertEqual(result.returncode, 0,

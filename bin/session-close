@@ -141,10 +141,14 @@ def main(argv=None):
 
     fase = state.get("current_phase") or "sem-fase"
     mensagem = "sessao %02d: %s %s" % (numero, fase, resumo_do_handoff(texto))
-    # Commit restrito a docs, sem git add: com pathspec o git usa o conteudo do
-    # diretorio de trabalho para aqueles paths e ignora o indice. Assim o que o
-    # agente deixou em staging, dentro ou fora de docs/, fica exatamente como
-    # estava, e o fechamento nao arrasta a regra de fase para codigo.
+    # git add e necessario: pathspec sozinho ignora arquivo nao rastreado, e o
+    # handoff nasce sempre assim. O pathspec no commit continua garantindo que
+    # o que o agente deixou em staging fora de docs/ nao entre no commit da
+    # sessao nem arraste a regra de fase para codigo.
+    docs_em_staging = [linha for linha in kit.git(
+        root, "diff", "--cached", "--name-only", "--", "docs"
+    ).stdout.splitlines() if linha.strip()]
+    kit.git(root, "add", "docs")
     commit = kit.git(root, "commit", "-m", mensagem, "--", "docs")
     if commit.returncode != 0:
         sys.stdout.write(commit.stdout)
@@ -164,6 +168,11 @@ def main(argv=None):
         state["last_session"] = last_session_antes
         state["session_open"] = True
         kit.write_state(root, state)
+        # Devolve o indice ao que era: desfaz o que este script stageou e
+        # recoloca o que o agente ja tinha stageado sob docs/.
+        kit.git(root, "reset", "-q", "--", "docs")
+        if docs_em_staging:
+            kit.git(root, "add", "--", *docs_em_staging)
         kit.die("session-close: o commit falhou, veja a saida acima. A sessao "
                 "continua aberta e o handoff intacto.", 1)
     print("Commit: %s" % mensagem)

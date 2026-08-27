@@ -94,7 +94,9 @@ copia_atualizavel() {
     mkdir -p "$(dirname "$destino")"
     if [ -e "$destino" ] && [ "$UPDATE" -eq 0 ]; then
         PULADOS="$PULADOS$rel\n"
-        [ -f "$destino" ] && printf '%s  %s\n' "$(soma "$destino")" "$rel" >> "$MANIFESTO.novo"
+        # Mesmo motivo do ramo de update: gravar o hash do alvo faria o proximo
+        # update concluir que o arquivo veio do kit e sobrescrever o do projeto.
+        printf '%s  %s\n' "$(soma "$origem")" "$rel" >> "$MANIFESTO.novo"
         return 0
     fi
     cp "$origem" "$destino"
@@ -149,7 +151,11 @@ else
     # entao ele nao distingue customizado de intocado. A lista de hashes ja
     # publicados resolve: se o arquivo do alvo e identico a alguma versao que o
     # kit ja entregou, ninguem mexeu nele.
-    AGENTS_PUBLICADOS="f102779f4d29e6ba7fb1bc2457eb5f582db31b97dea59c7c17974d52684ec5aa"
+    # Um hash por versao ja publicada do docs/AGENTS.md. Toda release nova
+    # acrescenta o hash da anterior aqui, senao o update seguinte passa a
+    # tratar todo AGENTS.md intocado como editado pelo projeto.
+    AGENTS_PUBLICADOS="f102779f4d29e6ba7fb1bc2457eb5f582db31b97dea59c7c17974d52684ec5aa
+88eb02464a3d742cd8f291abba624809c4994eebeceb81064aff68cd7636f104"
     agents_intocado() {
         [ -f "$ALVO/AGENTS.md" ] || return 1
         atual="$(soma "$ALVO/AGENTS.md")"

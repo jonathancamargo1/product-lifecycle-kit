@@ -44,7 +44,10 @@ def corpo_da_mensagem(mensagem):
 
 
 def _trailers(mensagem, marca):
-    return [l for l in corpo_da_mensagem(mensagem) if l.strip().startswith(marca)]
+    # Sem strip a esquerda: trailer de git vive na coluna 0, e o contador do
+    # PH-01 usa git log --grep ancorado ali. Aceitar indentado aqui criaria uma
+    # autorizacao que o contador nunca enxerga.
+    return [l for l in corpo_da_mensagem(mensagem) if l.startswith(marca)]
 
 
 PLACEHOLDER = "por que entra sem fase"

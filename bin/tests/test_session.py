@@ -246,6 +246,40 @@ class TestSessionCloseComCodigoEmStaging(SessionBase):
                         "o handoff foi consumido apesar da falha")
 
 
+class TestCommitDaSessaoPegaTudo(SessionBase):
+    def test_handoff_e_artefato_novos_entram_no_commit(self):
+        """Arquivo novo sob docs/ precisa entrar: commit com pathspec sozinho
+        ignora untracked, e o handoff nasce untracked sempre."""
+        import subprocess
+        self.git_init()
+        self.abre()
+        alvo = self.write_artifact("nucleo", "01-contexto", "contexto")
+        nome = self.handoff()
+        result = self.run_script("session-close", "--handoff", nome)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rastreados = self._git("ls-files").stdout
+        self.assertIn("docs/_handoffs/", rastreados, "handoff ficou de fora")
+        self.assertIn(alvo, rastreados, "artefato ficou de fora")
+        sobrou = self._git("status", "--short").stdout
+        self.assertNotIn("??", sobrou, "sobrou arquivo nao rastreado: %s" % sobrou)
+
+    def test_staging_do_agente_fora_de_docs_e_preservado(self):
+        import subprocess
+        self.git_init()
+        self.abre()
+        (self.root / "src").mkdir(exist_ok=True)
+        (self.root / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "src/app.py"], cwd=str(self.root),
+                       capture_output=True)
+        self.write_artifact("nucleo", "01-contexto", "contexto")
+        nome = self.handoff()
+        self.assertEqual(
+            self.run_script("session-close", "--handoff", nome).returncode, 0)
+        staged = self._git("diff", "--cached", "--name-only").stdout
+        self.assertIn("src/app.py", staged,
+                      "o session-close mexeu no staging do agente")
+
+
 class TestDecide(SessionBase):
     def test_cria_entrada_pendente_e_bloqueia_o_estado(self):
         result = self.run_script(
