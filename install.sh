@@ -273,7 +273,9 @@ fi
 # nunca ter declarado o tier, e a partir do ST-05 todos os commits dele passam
 # a ser recusados pelo pre-commit. Ficar calado justamente ai seria o pior.
 if [ -f "$ALVO/docs/STATE.md" ]; then
-    TIER_ATUAL="$(sed -n 's/^tier:[[:space:]]*\([^ #]*\).*/\1/p' "$ALVO/docs/STATE.md" | head -1)"
+    # Aspas e espaco a esquerda sao aceitos pelo parser do kit, entao tambem
+    # precisam ser aceitos aqui: senao tier: "2" dispara um aviso mentiroso.
+    TIER_ATUAL="$(sed -n 's/^[[:space:]]*tier:[[:space:]]*\([^ #]*\).*/\1/p' "$ALVO/docs/STATE.md" | head -1 | tr -d "\"'")"
     case "$TIER_ATUAL" in
         1|2|3) ;;
         *)

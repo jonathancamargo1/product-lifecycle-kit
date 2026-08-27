@@ -1,7 +1,37 @@
+"""Monta a secao 'Prova de funcionamento' do README a partir das saidas reais.
+
+Uso: python3 proofs/build-readme.py <diretorio-com-as-saidas>
+
+O diretorio precisa conter os .out gerados pelos outros scripts de proofs/,
+mais as arvores e o topo do README. Ver proofs/README.md para o fluxo inteiro.
+
+A fence dos blocos de prova tem QUATRO crases de proposito. As saidas contem
+blocos de tres crases (o session-open imprime o docs/STATE.md, que e um bloco
+yaml), e uma fence de tres seria fechada por eles no meio do caminho, fazendo
+metade do README renderizar como markdown solto.
+"""
+import sys
 from pathlib import Path
-SP = Path("/tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad")
-def b(n): return (SP / n).read_text(encoding="utf-8").rstrip("\n")
-F = chr(96) * 3
+
+SP = Path(sys.argv[1] if len(sys.argv) > 1 else "proofs/out")
+if not SP.is_dir():
+    raise SystemExit("build-readme: diretorio de saidas nao existe: %s\n"
+                     "Rode os scripts de proofs/ antes. Ver proofs/README.md."
+                     % SP)
+
+def b(n):
+    caminho = SP / n
+    if not caminho.exists():
+        raise SystemExit("build-readme: falta %s. Rode os scripts de proofs/ "
+                         "antes." % caminho)
+    return caminho.read_text(encoding="utf-8").rstrip("\n")
+
+def corpo(n):
+    """Descarta a primeira linha, que e o comando ecoado pelo script."""
+    partes = b(n).split("\n", 1)
+    return partes[1] if len(partes) > 1 else ""
+
+F = chr(96) * 4
 partes = [b("readme-topo.md")]
 partes.append("""
 ## Estrutura
@@ -29,9 +59,9 @@ as quatro fases do tier 1 ja executadas. E a saida real do modo A:
 
 `bin/lifecycle/` tem esse nome para nao colidir com um `bin/` que o projeto ja
 tenha. Os testes do kit nao sao copiados para o alvo.
-""" % (F, b("arvore-kit.out").split("\n", 1)[1], F,
+""" % (F, corpo("arvore-kit.out"), F,
        F, b("arvore-all.txt"), F,
-       F, b("arvore-alvo.out").split("\n", 1)[1], F))
+       F, corpo("arvore-alvo.out"), F))
 
 blocos = [
     ("### Testes", """Um caso que passa e um que falha para cada codigo de `gate-check`, mais os
