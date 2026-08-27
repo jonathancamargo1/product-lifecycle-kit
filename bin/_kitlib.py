@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-KIT_VERSION = "1.0.0"
+KIT_VERSION = "1.1.0"
 
 PHASES = [
     "01-contexto", "02-discovery", "03-csd", "04-personas-jornada", "05-prd",
@@ -32,6 +32,99 @@ TIER_PHASES = {
 }
 
 PHASES_SEM_INPUTS = ("01-contexto", "02-discovery")
+
+# A partir da fase 13 (build) commit de codigo e o trabalho esperado. Antes
+# dela, codigo entrando no repositorio quer dizer que se comecou a construir
+# sem spec e sem review, e o SQ-01 garante que tudo antes da 13 ja foi
+# aprovado. Depois dela (review, ship) codigo continua legitimo.
+CODE_PHASE_FROM = 13
+
+# Fallback usado quando docs/_process/code-paths.md nao existe (kit antigo).
+# Espelha docs/_process/code-paths.md, que e a fonte. Este fallback so vale
+# quando o arquivo nao existe (kit antigo), e divergir dele faria o fallback
+# barrar justamente o que o arquivo diz para nunca barrar.
+DEFAULT_NON_CODE = ("docs/**", ".claude/**", ".github/**", "bin/lifecycle/**",
+                    "proofs/**", "AGENTS.md", "CLAUDE.md", "README.md",
+                    "LICENSE", "LICENSE.md", "CONTRIBUTING.md", "CHANGELOG.md",
+                    ".gitignore", ".gitattributes", ".editorconfig", "Makefile",
+                    "Dockerfile", "docker-compose.yml", "package.json",
+                    "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
+                    "pyproject.toml", "poetry.lock", "requirements.txt",
+                    "tsconfig.json")
+CODE_TRAILER = "Sem-fase:"
+
+
+def non_code_globs(root):
+    """Padroes do que nao e codigo do produto, de docs/_process/code-paths.md.
+
+    Le a versao em HEAD, nao a do diretorio de trabalho: o arquivo e protegido,
+    e uma edicao nao commitada poderia desligar a regra para aquele commit sem
+    deixar rastro em lugar nenhum.
+    """
+    rel = "docs/_process/code-paths.md"
+    texto = head_content(root, rel)
+    if texto is None:
+        caminho = Path(root) / rel
+        if not caminho.exists():
+            return list(DEFAULT_NON_CODE)
+        try:
+            texto = caminho.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return list(DEFAULT_NON_CODE)
+    dentro = False
+    padroes = []
+    linhas = texto.splitlines()
+    for linha in linhas:
+        if linha.strip().startswith("```"):
+            if not dentro and "non-code-globs" in linha:
+                dentro = True
+                continue
+            if dentro:
+                break
+            continue
+        if dentro:
+            texto = linha.strip()
+            if texto and not texto.startswith("#"):
+                padroes.append(texto)
+    return padroes or list(DEFAULT_NON_CODE)
+
+
+def is_code_path(rel_path, root=None):
+    padroes = non_code_globs(root) if root is not None else list(DEFAULT_NON_CODE)
+    return not any(glob_matches(p, rel_path) for p in padroes)
+
+
+def code_phase_open(state):
+    """True se a fase corrente autoriza commit de codigo."""
+    fase = state.get("current_phase")
+    if not fase:
+        return False
+    try:
+        return phase_number(resolve_phase(str(fase))) >= CODE_PHASE_FROM
+    except (ValueError, IndexError):
+        return False
+
+
+PH01_JANELA = 500
+
+
+def commits_sem_fase(root):
+    """Autorizacoes nos ultimos PH01_JANELA commits.
+
+    A janela e um intervalo de revisoes, nao um -n: `-n` limita quantos
+    resultados aparecem, nao quanto historico o git percorre, entao nao
+    limitaria o custo nem seria janela de verdade. Isto roda no pre-commit, em
+    todo commit, entao o custo importa.
+    """
+    base = git(root, "rev-parse", "HEAD~%d" % PH01_JANELA)
+    if base.returncode == 0 and base.stdout.strip():
+        alvo = "%s..HEAD" % base.stdout.strip()
+    else:
+        alvo = "HEAD"
+    resultado = git(root, "log", alvo, "--grep", "^%s" % CODE_TRAILER, "--oneline")
+    if resultado.returncode != 0:
+        return 0
+    return len([l for l in resultado.stdout.splitlines() if l.strip()])
 
 ARTIFACT_STATUSES = ("draft", "review", "proposed", "approved", "superseded")
 GATE_STATUSES = ("in_progress", "proposed", "approved", "superseded")
@@ -56,7 +149,7 @@ STATE_COMMENTS = {
 }
 
 DEFAULT_PROTECTED_GLOBS = ["docs/_context/CONTEXT.md", "docs/_process/**",
-                           "AGENTS.md", "docs/AGENTS.md"]
+                           "AGENTS.md", "docs/AGENTS.md", "bin/lifecycle/**"]
 
 SESSION_AGENTS = ("codex", "claude-code", "human")
 
@@ -551,7 +644,47 @@ def refresh_area_panels(root, state):
         while fim < len(linhas) and linhas[fim].startswith("|"):
             fim += 1
         novas = [PANEL_HEADER, "|---|---|---|---|---|---|"]
-        for slug, gate in sorted(por_area.get(area, [])):
+        presentes = dict(por_area.get(area, []))
+        # O gate e chaveado so pela fase (Q2), entao outra area pode ter
+        # sobrescrito o registro desta. O artefato em disco nao sumiu: o painel
+        # da area olha a pasta dela antes de declarar uma fase pendente.
+        for pasta in sorted((base / area).iterdir()):
+            if not pasta.is_dir() or pasta.name in presentes:
+                continue
+            vivo = None
+            for artefato in sorted(pasta.glob("*.md")):
+                if artefato.name == "README.md":
+                    continue
+                fields, _ = read_frontmatter(artefato)
+                if fields is None:
+                    continue
+                # Artefato ja substituido nao e a evidencia da area.
+                if fields.get("superseded_by"):
+                    vivo = vivo or (artefato, fields)
+                    continue
+                vivo = (artefato, fields)
+                break
+            if vivo is None:
+                continue
+            artefato, fields = vivo
+            # Traduz para o vocabulario dos gates: a outra metade da tabela
+            # vem do STATE.md, e as duas nao podem falar linguas diferentes.
+            bruto = fields.get("status") or ""
+            presentes[pasta.name] = {
+                "status": "in_progress" if bruto in ("draft", "review") else bruto,
+                "evidence": artefato.relative_to(root).as_posix(),
+                "by": fields.get("approved_by"),
+                "date": fields.get("approved_at"),
+            }
+        # As fases que faltam entram como pendente. Sem elas o painel mente por
+        # omissao: um projeto pela metade parece completo, porque so o que
+        # existe aparece na tabela.
+        ordem = obrigatorias if obrigatorias is not None else sorted(presentes)
+        for slug in ordem:
+            gate = presentes.get(slug)
+            if gate is None:
+                novas.append("| %s | | pendente | | | |" % slug)
+                continue
             evidencia = str(gate.get("evidence") or "")
             fields, _ = read_frontmatter(Path(root) / evidencia)
             titulo = (fields or {}).get("title") or ""
@@ -560,10 +693,12 @@ def refresh_area_panels(root, state):
                 evidencia, gate.get("by") or "", gate.get("date") or ""))
         linhas[inicio:fim] = novas
 
-        entradas = por_area.get(area, [])
+        # O status geral olha as linhas desta area, nao o mapa global de gates:
+        # senao um painel com fases pendentes se declararia concluido porque
+        # outra area fechou aquelas fases.
         if obrigatorias is not None:
             faltam = [s for s in obrigatorias
-                      if (gates.get(s) or {}).get("status") != "approved"]
+                      if (presentes.get(s) or {}).get("status") != "approved"]
             geral = "em andamento" if faltam else "concluida"
         else:
             geral = "em andamento"
@@ -655,10 +790,35 @@ def last_modified(root, rel_path):
 
 
 def head_content(root, rel_path):
-    resultado = git(root, "show", "HEAD:%s" % rel_path)
+    # Sem text=True: um arquivo binario em staging (um .pyc, por exemplo)
+    # levantaria UnicodeDecodeError e derrubaria o hook inteiro.
+    resultado = subprocess.run(["git", "show", "HEAD:%s" % rel_path],
+                               cwd=str(root), capture_output=True)
     if resultado.returncode != 0:
         return None
-    return resultado.stdout
+    try:
+        return resultado.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        # Binario nao tem frontmatter, entao nao e artefato nem ADR.
+        return ""
+
+
+def merge_em_andamento(root):
+    resultado = git(root, "rev-parse", "--absolute-git-dir")
+    if resultado.returncode != 0 or not resultado.stdout.strip():
+        return False
+    return (Path(resultado.stdout.strip()) / "MERGE_HEAD").exists()
+
+
+def staged_under(root, prefixo):
+    """Paths em staging sob um prefixo, com -z para sobreviver a acento."""
+    resultado = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "-z", "--", prefixo],
+        cwd=str(root), capture_output=True)
+    if resultado.returncode != 0:
+        return []
+    bruto = resultado.stdout.decode("utf-8", "surrogateescape")
+    return [p for p in bruto.split("\0") if p]
 
 
 def staged_files(root):

@@ -74,10 +74,24 @@ copia() {
     mkdir -p "$(dirname "$destino")"
     if [ -e "$destino" ] && [ "$UPDATE" -eq 0 ]; then
         PULADOS="$PULADOS$rel\n"
+        registra_se_identico "$origem" "$destino" "$rel"
         return 0
     fi
     cp "$origem" "$destino"
     printf '%s  %s\n' "$(soma "$destino")" "$rel" >> "$MANIFESTO.novo"
+}
+
+registra_se_identico() {
+    # O manifesto so pode registrar o que o kit REALMENTE entregou naquele
+    # path. Registrar o hash do kit para um arquivo que o projeto customizou
+    # daria ao guard-commit licenca para substituir a customizacao pela versao
+    # do kit sem decisao nenhuma, que e o oposto do que a protecao existe para
+    # fazer. Se o conteudo e identico, registrar e correto e inofensivo.
+    local origem="$1" destino="$2" rel="$3"
+    [ -f "$destino" ] || return 0
+    if [ "$(soma "$destino")" = "$(soma "$origem")" ]; then
+        printf '%s  %s\n' "$(soma "$destino")" "$rel" >> "$MANIFESTO.novo"
+    fi
 }
 
 copia_atualizavel() {
@@ -85,13 +99,13 @@ copia_atualizavel() {
     local origem="$1" rel="$2" destino="$ALVO/$2"
     if [ "$UPDATE" -eq 1 ] && customizado "$rel"; then
         REVISAR="$REVISAR$rel\n"
-        [ -f "$destino" ] && printf '%s  %s\n' "$(soma "$destino")" "$rel" >> "$MANIFESTO.novo"
+        registra_se_identico "$origem" "$destino" "$rel"
         return 0
     fi
     mkdir -p "$(dirname "$destino")"
     if [ -e "$destino" ] && [ "$UPDATE" -eq 0 ]; then
         PULADOS="$PULADOS$rel\n"
-        [ -f "$destino" ] && printf '%s  %s\n' "$(soma "$destino")" "$rel" >> "$MANIFESTO.novo"
+        registra_se_identico "$origem" "$destino" "$rel"
         return 0
     fi
     cp "$origem" "$destino"
@@ -139,24 +153,69 @@ if [ "$UPDATE" -eq 0 ]; then
     copia "$KIT_DIR/docs/AGENTS.md" "AGENTS.md"
     mkdir -p "$ALVO/docs/_handoffs" "$ALVO/docs/areas"
 else
-    for rel in docs/STATE.md AGENTS.md; do
-        [ -f "$ALVO/$rel" ] && printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
-    done
+    # AGENTS.md editado pelo projeto nunca e tocado. Mas o que veio do kit e
+    # nunca foi mexido precisa acompanhar, senao o projeto atualiza os hooks e
+    # fica com instrucoes que nao falam das regras novas.
+    # O manifesto da 1.0.0 guardava o hash do arquivo do ALVO, nao o do kit,
+    # entao ele nao distingue customizado de intocado. A lista de hashes ja
+    # publicados resolve: se o arquivo do alvo e identico a alguma versao que o
+    # kit ja entregou, ninguem mexeu nele.
+    # Um hash por versao ja publicada do docs/AGENTS.md. Toda release nova
+    # acrescenta o hash da anterior aqui, senao o update seguinte passa a
+    # tratar todo AGENTS.md intocado como editado pelo projeto.
+    AGENTS_PUBLICADOS="f102779f4d29e6ba7fb1bc2457eb5f582db31b97dea59c7c17974d52684ec5aa
+88eb02464a3d742cd8f291abba624809c4994eebeceb81064aff68cd7636f104"
+    agents_intocado() {
+        [ -f "$ALVO/AGENTS.md" ] || return 1
+        atual="$(soma "$ALVO/AGENTS.md")"
+        [ "$atual" = "$(soma "$KIT_DIR/docs/AGENTS.md")" ] && return 0
+        for conhecido in $AGENTS_PUBLICADOS; do
+            [ "$atual" = "$conhecido" ] && return 0
+        done
+        return 1
+    }
+    if agents_intocado; then
+        cp "$KIT_DIR/docs/AGENTS.md" "$ALVO/AGENTS.md"
+        info "  AGENTS.md nao tinha edicao do projeto, foi atualizado"
+    elif [ -f "$ALVO/AGENTS.md" ]; then
+        REVISAR="$REVISAR AGENTS.md (editado pelo projeto, regras novas nao entraram)\n"
+    fi
+    [ -f "$ALVO/docs/STATE.md" ] && printf '%s  %s\n' "$(soma "$ALVO/docs/STATE.md")" "docs/STATE.md" >> "$MANIFESTO.novo"
+    # AGENTS.md customizado nao entra no manifesto com o hash do kit: isso
+    # daria ao guard-commit licenca para trocar a customizacao pela versao do
+    # kit sem decisao. Quem detecta customizacao aqui e agents_intocado, que
+    # compara com AGENTS_PUBLICADOS, nao o manifesto.
+    registra_se_identico "$KIT_DIR/docs/AGENTS.md" "$ALVO/AGENTS.md" "AGENTS.md"
 fi
 
 # 3. scripts, sem os testes do kit
-for script in gate-check new-artifact session-open session-close guard-write \
+for script in gate-check new-artifact session-open session-close guard-write plan \
               guard-commit decide _kitlib.py; do
     rel="bin/lifecycle/$script"
-    if [ "$UPDATE" -eq 1 ]; then
-        mkdir -p "$ALVO/bin/lifecycle"
-        cp "$KIT_DIR/bin/$script" "$ALVO/$rel"
-        printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
-    else
-        copia "$KIT_DIR/bin/$script" "$rel"
-    fi
+    # bin/lifecycle e territorio do kit, como docs/_process: script dali e
+    # sempre realinhado, na instalacao e no update. Preservar um _kitlib.py
+    # antigo junto com hooks novos quebra todo commit do projeto.
+    mkdir -p "$ALVO/bin/lifecycle"
+    cp "$KIT_DIR/bin/$script" "$ALVO/$rel"
+    printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
     [ "$script" = "_kitlib.py" ] || chmod +x "$ALVO/$rel" 2>/dev/null || true
 done
+
+# 3b. bytecode do python nunca deve ser versionado no alvo: um .pyc de
+# bin/lifecycle rastreado derruba o guard-commit no commit seguinte.
+if ! grep -qx "__pycache__/" "$ALVO/.gitignore" 2>/dev/null; then
+    # .gitignore sem newline final: append cru grudaria na ultima linha e
+    # invalidaria as duas regras de uma vez.
+    if [ -s "$ALVO/.gitignore" ] && [ -n "$(tail -c 1 "$ALVO/.gitignore")" ]; then
+        printf '\n' >> "$ALVO/.gitignore"
+    fi
+    printf '__pycache__/\n*.pyc\n' >> "$ALVO/.gitignore"
+    info "  __pycache__ adicionado ao .gitignore do alvo"
+fi
+if git -C "$ALVO" ls-files --error-unmatch 'bin/lifecycle/__pycache__' >/dev/null 2>&1; then
+    git -C "$ALVO" rm -r --cached -q bin/lifecycle/__pycache__ 2>/dev/null || true
+    info "  __pycache__ que estava versionado foi retirado do indice"
+fi
 
 # 4. git hooks: sempre reinstalados, sempre encadeando
 instala_hook pre-commit

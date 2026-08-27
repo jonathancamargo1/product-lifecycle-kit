@@ -119,6 +119,7 @@ O protocolo e o mesmo nos dois runtimes. A primeira acao da sessao e
 | Abrir sessao | `bin/lifecycle/session-open --agent <codex\|claude-code\|human>` | `/session-open` |
 | Criar artefato | `bin/lifecycle/new-artifact <fase> <area> "<titulo>" --owner <nome> [--inputs <paths>]` | `/new-artifact` |
 | Abrir decisao | `bin/lifecycle/decide --titulo "..." --afeta <path>` | `/decide` |
+| Ver o que falta | `bin/lifecycle/plan` | `/plan` |
 | Verificar gates | `bin/lifecycle/gate-check` | nao ha |
 | Fechar sessao | `bin/lifecycle/session-close --handoff <arquivo>` | `/session-close` |
 
@@ -128,6 +129,60 @@ corrente. O agente nunca carrega o projeto inteiro.
 
 No Claude Code, o hook `SessionStart` faz a abertura sozinho. No Codex, quem
 manda rodar e o `AGENTS.md`.
+
+## O que falta
+
+`bin/lifecycle/plan` compara as fases obrigatorias do tier com os gates que
+existem e imprime o buraco, em ordem, com a proxima acao pronta para copiar:
+
+```sh
+$ bin/lifecycle/plan
+Tier 2: 12 fases obrigatorias, faltam 11 de 12.
+
+  01-contexto         approved     docs/areas/checkout/01-contexto/contexto.md
+> 02-discovery        pendente
+> 05-prd              pendente
+  ...
+
+Proxima acao: criar o artefato da fase 02-discovery.
+```
+
+E o unico lugar que mostra o que nunca foi comecado. O painel da area lista o
+que existe e o `gate-check` verifica o que existe; nenhum dos dois enxerga
+ausencia. Por isso o painel tambem passou a listar as fases pendentes: por
+omissao, ele fazia um projeto pela metade parecer completo.
+
+## Codigo entra a partir da fase 13
+
+Commit que toca codigo do produto exige a fase corrente ser `13-build-log` ou
+posterior. Fora disso o `commit-msg` recusa, lista os arquivos e diz o que se
+perde: codigo sem spec que o descreva, sem review de papel distinto do
+executor, e sem rastro da decisao de produto que o originou.
+
+O que conta como codigo do produto esta em `docs/_process/code-paths.md`, e o
+projeto ajusta: configuracao de CI, arquivo de build, lockfile e documentacao
+de raiz ficam de fora por padrao.
+
+Nao e bloqueio automatico, e isso e deliberado. Um kit que impede hotfix e um
+kit que as pessoas desligam. A saida existe, mas custa um ato explicito:
+
+```
+Sem-fase: <por que entra sem fase, e quem autorizou>
+```
+
+Tres consequencias de desenho. Quem autoriza e humano: o `AGENTS.md` proibe o
+agente de escrever esse trailer sozinho, com a analogia direta de que
+autorizar a si mesmo e o mesmo que aprovar o proprio gate. A autorizacao fica
+registrada no commit, nao num arquivo que alguem limpa depois. E o `gate-check`
+conta quantas existem (`PH-01`, aviso) e mostra em toda sessao, porque
+`session-open` roda o `gate-check`.
+
+Os limites, que nenhum hook fecha: o trailer e texto de commit, entao um agente
+que decida mentir consegue escreve-lo; e reescrita de historico (`--amend`,
+rebase) pode apagar o registro, como pode com qualquer coisa que viva em
+mensagem de commit. Mesmo teto do `--no-verify`. O kit torna o desvio caro,
+visivel e rastreavel; nao torna impossivel. Garantia forte contra reescrita e
+protecao de branch no servidor, camada que um kit de arquivos nao alcanca.
 
 ## Quem aprova
 
@@ -180,12 +235,13 @@ comecar, e `--json` para consumo por script.
 | SQ-01 | `current_phase` em andamento com gate obrigatorio anterior nao aprovado | erro |
 | DC-01 | `PENDING` em `decisions.log` sem `blocked_by` correspondente | erro |
 | VC-01 | Termo proibido pelo glossario aparece no codigo ou nos documentos | erro |
+| PH-01 | Commits de codigo que entraram sem fase de build | aviso |
 | DR-01 | Pasta vazia sob `docs/areas/` | aviso |
 | KV-01 | `docs/KIT_VERSION` ausente ou incompativel com os scripts | aviso |
 
-Avisos nao alteram o exit code. `IN-03`, `ST-04` e `ST-05` nao constam da
-tabela da especificacao original; estao registrados em `OPEN_QUESTIONS.md`,
-Q6, Q21 e Q27.
+Avisos nao alteram o exit code. `IN-03`, `ST-04`, `ST-05` e `PH-01` nao
+constam da tabela da especificacao original; estao registrados em
+`OPEN_QUESTIONS.md`, Q6, Q21, Q27 e Q29.
 
 ## Adaptador versus enforcement comum
 
@@ -227,6 +283,7 @@ adapters/
       commands/
         decide.md
         new-artifact.md
+        plan.md
         session-close.md
         session-open.md
       hooks/
@@ -244,15 +301,19 @@ bin/
   guard-commit
   guard-write
   new-artifact
+  plan
   session-close
   session-open
   tests/
     __init__.py
     kitfixture.py
+    test_code_phase.py
     test_gate_check.py
     test_guards.py
+    test_integracao.py
     test_kitlib.py
     test_new_artifact.py
+    test_plan.py
     test_session.py
 docs/
   AGENTS.md
@@ -268,6 +329,7 @@ docs/
   _handoffs/
     .gitkeep
   _process/
+    code-paths.md
     definition-of-done.md
     definition-of-ready.md
     gates.md
@@ -306,8 +368,10 @@ install.sh
 proofs/
   README.md
   adapters-none.sh
+  arvores.sh
   build-readme.py
   encadeamento.sh
+  fase-para-codigo.sh
   modo-a-claude-code.sh
   modo-b-codex.sh
   modo-c-update.sh
@@ -323,12 +387,14 @@ nasce quando o artefato nasce:
 .claude/commands
 .claude/commands/decide.md
 .claude/commands/new-artifact.md
+.claude/commands/plan.md
 .claude/commands/session-close.md
 .claude/commands/session-open.md
 .claude/hooks
 .claude/hooks/guard-write.sh
 .claude/hooks/stop-gate.sh
 .claude/settings.json
+.gitignore
 AGENTS.md
 CLAUDE.md
 bin
@@ -339,6 +405,7 @@ bin/lifecycle/gate-check
 bin/lifecycle/guard-commit
 bin/lifecycle/guard-write
 bin/lifecycle/new-artifact
+bin/lifecycle/plan
 bin/lifecycle/session-close
 bin/lifecycle/session-open
 docs
@@ -353,6 +420,7 @@ docs/_context/decisions.log
 docs/_context/principles.md
 docs/_handoffs
 docs/_process
+docs/_process/code-paths.md
 docs/_process/definition-of-done.md
 docs/_process/definition-of-ready.md
 docs/_process/gates.md
@@ -395,12 +463,14 @@ as quatro fases do tier 1 ja executadas. E a saida real do modo A:
 ./.claude/commands
 ./.claude/commands/decide.md
 ./.claude/commands/new-artifact.md
+./.claude/commands/plan.md
 ./.claude/commands/session-close.md
 ./.claude/commands/session-open.md
 ./.claude/hooks
 ./.claude/hooks/guard-write.sh
 ./.claude/hooks/stop-gate.sh
 ./.claude/settings.json
+./.gitignore
 ./AGENTS.md
 ./CLAUDE.md
 ./bin
@@ -411,6 +481,7 @@ as quatro fases do tier 1 ja executadas. E a saida real do modo A:
 ./bin/lifecycle/guard-commit
 ./bin/lifecycle/guard-write
 ./bin/lifecycle/new-artifact
+./bin/lifecycle/plan
 ./bin/lifecycle/session-close
 ./bin/lifecycle/session-open
 ./docs
@@ -429,6 +500,7 @@ as quatro fases do tier 1 ja executadas. E a saida real do modo A:
 ./docs/_handoffs/2026-08-27-sessao-03.md
 ./docs/_handoffs/2026-08-27-sessao-04.md
 ./docs/_process
+./docs/_process/code-paths.md
 ./docs/_process/definition-of-done.md
 ./docs/_process/definition-of-ready.md
 ./docs/_process/gates.md
@@ -477,7 +549,7 @@ tenha. Os testes do kit nao sao copiados para o alvo.
 
 ## Prova de funcionamento
 
-Tudo abaixo e saida real, colada sem edicao, gerada com o kit na versao 1.0.0.
+Tudo abaixo e saida real, colada sem edicao, gerada com o kit na versao 1.1.0.
 Os scripts que produzem cada bloco estao em `proofs/` e podem ser rodados de
 novo do zero. Nenhum deles altera o kit: a prova do modo C monta a versao nova
 numa copia temporaria, justamente para que os outros blocos continuem
@@ -490,9 +562,9 @@ testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 
 ````text
 $ python3 -m unittest discover bin/tests
-...........................................................................................................................
+.................................................................................................................................................................................
 ----------------------------------------------------------------------
-Ran 123 tests in 16.070s
+Ran 177 tests in 36.194s
 
 OK
 EXIT: 0
@@ -518,10 +590,11 @@ aberta (3a); `session-close --check` saindo 1 com a sessao aberta e 0 depois
 
 ----- 1. Instalacao -----
 $ /home/user/product-lifecycle-kit/install.sh . --adapters claude-code
-Instalando o product-lifecycle-kit 1.0.0 em /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-a.
+Instalando o product-lifecycle-kit 1.1.0 em /tmp/prova-a.
+  __pycache__ adicionado ao .gitignore do alvo
 Adaptador claude-code.
 
-docs/KIT_VERSION: 1.0.0
+docs/KIT_VERSION: 1.1.0
 Rodando gate-check no alvo.
 
 gate-check: nenhuma ocorrencia.
@@ -560,8 +633,8 @@ $ python3 bin/lifecycle/session-open --agent claude-code
 === AGENTS.md
 # AGENTS
 
-Instrucoes para qualquer agente que opere este repositorio. Fonte unica de
-regras: `CLAUDE.md` apenas importa este arquivo, o Codex le direto daqui.
+Fonte unica de regras para qualquer agente aqui. `CLAUDE.md` so importa este
+arquivo; o Codex le direto daqui.
 
 ## Protocolo de sessao
 
@@ -569,25 +642,30 @@ Primeira acao da sessao e `session-open`. Ultima e `session-close`. Sem
 excecao. Se a saida de `session-open` nao esta no seu contexto, rode antes de
 qualquer outra coisa.
 
-## Comandos
-
 | Acao | Qualquer runtime | Claude Code tambem |
 |---|---|---|
 | Abrir sessao | `bin/lifecycle/session-open --agent <codex\|claude-code\|human>` | `/session-open` |
+| Ver o que falta | `bin/lifecycle/plan` | `/plan` |
 | Criar artefato | `bin/lifecycle/new-artifact <fase> <area> "<titulo>" --owner <nome> [--inputs <paths>]` | `/new-artifact` |
 | Abrir decisao | `bin/lifecycle/decide --titulo "..." --afeta <path>` | `/decide` |
 | Verificar tudo | `bin/lifecycle/gate-check` | nao ha |
 | Fechar sessao | `bin/lifecycle/session-close --handoff <arquivo>` | `/session-close` |
 
-`--inputs` e obrigatorio fora das fases 01 e 02: os paths dos artefatos em que
-este se apoia, separados por virgula. Um artefato por gate: para substituir um
-que ja existe, use `--supersede`.
+`--inputs` e obrigatorio fora das fases 01 e 02. Um artefato por gate: para
+substituir um que ja existe, use `--supersede`.
 
-## O handoff
+O handoff vai num arquivo temporario fora de `docs/_handoffs/`, com tres
+secoes nesta ordem e no maximo 15 linhas: `## Fiz`, `## Falta`, `## Cuidado
+com`. O script move para o lugar certo.
 
-Escreva num arquivo temporario fora de `docs/_handoffs/`, com exatamente estas
-tres secoes, nesta ordem, e no maximo 15 linhas de conteudo: `## Fiz`,
-`## Falta`, `## Cuidado com`. O script move para o lugar certo.
+## Codigo so da fase 13 em diante
+
+Commit que toca codigo do produto exige a fase corrente ser 13-build-log ou
+posterior. O `commit-msg` recusa fora disso e explica o que se perde. Se
+precisar entrar assim mesmo, **pergunte ao humano e espere a resposta**; com a
+autorizacao dele, registre no commit a linha `Sem-fase: <por que entra sem
+fase, e quem autorizou>`. Nunca escreva esse trailer sozinho: autorizar a si
+mesmo e o mesmo que aprovar o proprio gate, e a regra 4 proibe.
 
 ## Regras
 
@@ -607,11 +685,9 @@ tres secoes, nesta ordem, e no maximo 15 linhas de conteudo: `## Fiz`,
 
 ## O que voce pode e nao pode editar
 
-Pode: artefatos em `docs/areas/` com status `draft` ou `review`,
-`docs/STATE.md`, handoffs, e o codigo do projeto.
-
-Nao pode: `docs/_context/CONTEXT.md`, ADR `accepted`, artefato `approved`,
-`docs/_process/` inteiro, e este arquivo.
+Pode: artefatos `draft` ou `review` em `docs/areas/`, `docs/STATE.md`,
+handoffs, e o codigo do projeto. Nao pode: `docs/_context/CONTEXT.md`, ADR
+`accepted`, artefato `approved`, `docs/_process/` inteiro, e este arquivo.
 
 Nunca aprove um gate. Nunca suponha regra de negocio. Nunca edite CONTEXT.md,
 ADR aceita, artefato aprovado ou docs/_process sem decisao humana registrada.
@@ -881,15 +957,15 @@ session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-7ce0f40 humano aprova o gate 17-ship
-7daa0ef sessao 04: 17-ship executei a fase 17-ship
-fcc324b humano aprova o gate 14-review
-0e686a7 sessao 03: 14-review executei a fase 14-review
-a7e369c humano aprova o gate 13-build-log
-5615cd1 sessao 02: 13-build-log executei a fase 13-build
-c854ee7 humano aprova o gate 01-contexto
-8a85bac sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-ae8c815 instala o product-lifecycle-kit
+f57e0a2 humano aprova o gate 17-ship
+27bbcf0 sessao 04: 17-ship executei a fase 17-ship
+0b47b46 humano aprova o gate 14-review
+63cdcdb sessao 03: 14-review executei a fase 14-review
+730823d humano aprova o gate 13-build-log
+b1aa1ff sessao 02: 13-build-log executei a fase 13-build
+4bb59d2 humano aprova o gate 01-contexto
+cddab82 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+f800b03 instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -915,10 +991,11 @@ garantias que existem sem rede de seguranca de runtime:
 
 ----- 1. Instalacao sem nenhum hook de runtime -----
 $ /home/user/product-lifecycle-kit/install.sh . --adapters codex
-Instalando o product-lifecycle-kit 1.0.0 em /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b.
+Instalando o product-lifecycle-kit 1.1.0 em /tmp/prova-b.
+  __pycache__ adicionado ao .gitignore do alvo
 Adaptador codex.
 
-docs/KIT_VERSION: 1.0.0
+docs/KIT_VERSION: 1.1.0
 Rodando gate-check no alvo.
 
 gate-check: nenhuma ocorrencia.
@@ -949,6 +1026,7 @@ $ ls -a .
 .
 ..
 .git
+.gitignore
 AGENTS.md
 bin
 docs
@@ -962,7 +1040,7 @@ commit inicial ok
 
 ----- 3. Sessao 01, fase 01-contexto, invocando os scripts direto -----
 $ python3 bin/lifecycle/session-open --agent codex
-[cabecalho de AGENTS.md, STATE.md, CONTEXT.md e principles.md suprimido aqui, 172 linhas]
+[cabecalho de AGENTS.md, STATE.md, CONTEXT.md e principles.md suprimido aqui, 175 linhas]
 gate-check: nenhuma ocorrencia.
 
 Sessao 01 aberta para o agente codex.
@@ -1058,7 +1136,7 @@ EXIT: 0
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main 3dc4f0c] commit de codigo com a sessao aberta
+[main 6e00490] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1076,7 +1154,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-8bf5b82 humano aprova o gate 01-contexto
+c073c1a humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1087,7 +1165,7 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main 3be2d4c] corrige o artefato aprovado sob a decisao D-0001
+[main c9955d2] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
@@ -1102,7 +1180,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main d2e82c0] adiciona uma nota solta
+[main b3768c2] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1112,27 +1190,27 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-d2e82c0 adiciona uma nota solta
-3be2d4c corrige o artefato aprovado sob a decisao D-0001
-6686565 sessao 06: 17-ship commit de codigo
-3dc4f0c commit de codigo com a sessao aberta
-c83e072 sessao 05: 17-ship trabalho da sessao 05
-fd0ddd2 humano aprova o gate 17-ship
-65fb32c sessao 04: 17-ship executei a fase 17-ship
-a779217 humano aprova o gate 14-review
-f16bf93 sessao 03: 14-review executei a fase 14-review
-2feacb1 humano aprova o gate 13-build-log
-4d24f18 sessao 02: 13-build-log executei a fase 13-build
-8bf5b82 humano aprova o gate 01-contexto
-561b4ac sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-dae26d8 instala o product-lifecycle-kit
+b3768c2 adiciona uma nota solta
+c9955d2 corrige o artefato aprovado sob a decisao D-0001
+684fa56 sessao 06: 17-ship commit de codigo
+6e00490 commit de codigo com a sessao aberta
+7ff31a0 sessao 05: 17-ship trabalho da sessao 05
+dc515ac humano aprova o gate 17-ship
+ea034df sessao 04: 17-ship executei a fase 17-ship
+3197758 humano aprova o gate 14-review
+4852e14 sessao 03: 14-review executei a fase 14-review
+3b48a2c humano aprova o gate 13-build-log
+6a457cd sessao 02: 13-build-log executei a fase 13-build
+c073c1a humano aprova o gate 01-contexto
+9d71341 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+068a15e instala o product-lifecycle-kit
 EXIT: 0
 ````
 
 ### Modo C: atualizacao
 
 `proofs/modo-c-update.sh`. Com o projeto `prova-b` ja instalado na versao
-1.0.0, monta uma copia temporaria do kit na versao 1.1.0, com a secao
+1.1.0, monta uma copia temporaria do kit na versao 1.2.0, com a secao
 correspondente no `CHANGELOG.md`, e roda o `install.sh` dessa copia com
 `--update`.
 
@@ -1148,27 +1226,28 @@ kit instalou. Edicao a mao no mesmo arquivo continua barrada.
 ````text
 
 ----- 1. Estado antes do update -----
-$ cat /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b/docs/KIT_VERSION
-1.0.0
+$ cat /tmp/prova-b/docs/KIT_VERSION
+1.1.0
 EXIT: 0
 impressao digital de STATE.md + _handoffs + areas: 54836ebb41342f0ea4d0769a113dffc490b8acbb38b1a24c73306be43d3fc3eb
 
 ----- 2. Nova versao do kit, montada numa copia temporaria -----
-copia do kit montada na versao 1.1.0. O kit real segue intocado.
+copia do kit montada na versao 1.2.0. O kit real segue intocado.
 $ cat <copia>/VERSION
-1.1.0
+1.2.0
 $ cat /home/user/product-lifecycle-kit/VERSION   (o kit real)
-1.0.0
+1.1.0
 
 ----- 3. install.sh --update, rodado a partir da copia -----
-$ <copia>/install.sh /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b --update
-Atualizando o kit em /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b para a versao 1.1.0.
-Versao anterior: 1.0.0
+$ <copia>/install.sh /tmp/prova-b --update
+Atualizando o kit em /tmp/prova-b para a versao 1.2.0.
+Versao anterior: 1.1.0
+  AGENTS.md nao tinha edicao do projeto, foi atualizado
   adaptador claude-code nao estava instalado, pulando
 Adaptador codex.
 
 Mudancas desta versao (CHANGELOG.md):
-  ## 1.1.0
+  ## 1.2.0
   
   Versao usada para provar o fluxo `install.sh --update` (modo C do README).
   Nenhuma mudanca de comportamento em relacao a versao anterior: processo e
@@ -1176,7 +1255,7 @@ Mudancas desta versao (CHANGELOG.md):
   contexto, handoffs ou artefatos.
   
 
-docs/KIT_VERSION: 1.1.0
+docs/KIT_VERSION: 1.2.0
 Rodando gate-check no alvo.
 
 gate-check: nenhuma ocorrencia.
@@ -1185,8 +1264,8 @@ Instalacao concluida. gate-check saiu com 0.
 EXIT: 0
 
 ----- 4. KIT_VERSION do alvo mudou -----
-$ cat /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b/docs/KIT_VERSION
-1.1.0
+$ cat /tmp/prova-b/docs/KIT_VERSION
+1.2.0
 EXIT: 0
 
 ----- 5. STATE.md, _handoffs e areas nao mudaram -----
@@ -1195,7 +1274,7 @@ depois: 54836ebb41342f0ea4d0769a113dffc490b8acbb38b1a24c73306be43d3fc3eb
 IGUAIS. O update nao tocou em estado, handoffs nem artefatos.
 
 ----- 5a. git status do alvo depois do update -----
-$ git -C /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b status --short
+$ git -C /tmp/prova-b status --short
  M bin/lifecycle/_kitlib.py
  M docs/.kit-manifest
  M docs/KIT_VERSION
@@ -1221,9 +1300,10 @@ isso em vez de deixar passar.
 
 ````text
 $ /home/user/product-lifecycle-kit/install.sh . --adapters none
-Instalando o product-lifecycle-kit 1.0.0 em /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-none.
+Instalando o product-lifecycle-kit 1.1.0 em /tmp/prova-none.
+  __pycache__ adicionado ao .gitignore do alvo
 
-docs/KIT_VERSION: 1.0.0
+docs/KIT_VERSION: 1.1.0
 Rodando gate-check no alvo.
 
 gate-check: nenhuma ocorrencia.
@@ -1251,8 +1331,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 2341 Aug 27 13:35 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 27 13:35 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 8692 Aug 27 18:04 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 27 18:04 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1260,6 +1340,7 @@ $ ls -a .
 .
 ..
 .git
+.gitignore
 AGENTS.md
 bin
 docs
@@ -1268,6 +1349,130 @@ EXIT: 0
 ----- gate-check no alvo -----
 $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
+EXIT: 0
+````
+
+### Codigo entra a partir da fase 13
+
+`proofs/fase-para-codigo.sh`. Instala num repositorio que ja tem codigo,
+declara tier 2, e tenta subir uma feature sem nenhuma fase comecada.
+
+Demonstra: o `plan` mostrando as 12 fases pendentes (2); a recusa do
+`commit-msg` com os arquivos e o custo na tela (3); o caminho recomendado
+funcionando (4); a recusa continuando de pe na fase 01, porque codigo e
+esperado da 13 em diante (5); a autorizacao explicita do humano deixando o
+commit passar (6); a autorizacao sem motivo sendo recusada (7); e a divida
+aparecendo no `gate-check` como `PH-01` com o rastro permanente no git log
+(8).
+
+````text
+
+----- 1. Instalacao, tier 2 -----
+gate-check: nenhuma ocorrencia.
+instalado, tier 2, nenhuma fase comecada
+
+----- 2. O que falta, antes de qualquer coisa -----
+$ python3 bin/lifecycle/plan
+Projeto: prova-fase
+Tier 2: 12 fases obrigatorias, faltam 12 de 12.
+
+> 01-contexto         pendente     
+> 02-discovery        pendente     
+> 05-prd              pendente     
+> 07-flows-ia         pendente     
+> 08-wireframes       pendente     
+> 11-spec             pendente     
+> 12-backlog-handoff  pendente     
+> 13-build-log        pendente     
+> 14-review           pendente     
+> 15-threat-review    pendente     
+> 16-verify           pendente     
+> 17-ship             pendente     
+
+Proxima acao: criar o artefato da fase 01-contexto.
+  bin/lifecycle/new-artifact 01-contexto <area> "<titulo>" --owner "<nome>"
+EXIT: 0
+
+----- 3. O agente tenta subir feature sem fase de build -----
+$ git commit -m adiciona feature de checkout
+gate-check: nenhuma ocorrencia.
+commit-msg: codigo entrando sem fase de build aberta.
+
+  arquivos: src/app.py
+  fase corrente: nenhuma (codigo e esperado da 13-build-log em diante)
+
+O que se perde ao seguir assim: este codigo nao tem spec que o descreva,
+nao passa por review de papel distinto do executor, e nao deixa rastro
+de qual decisao de produto o originou. Daqui a tres meses ninguem sabe
+por que ele existe.
+
+O caminho recomendado, que diz qual e a proxima fase de verdade:
+  bin/lifecycle/plan
+
+Se mesmo assim este commit precisa entrar agora, pergunte ao humano e
+registre a resposta dele no proprio commit:
+  Sem-fase: <por que entra sem fase, e quem autorizou>
+
+Nunca escreva esse trailer por conta propria. Ver AGENTS.md.
+EXIT: 1
+
+----- 4. O caminho recomendado funciona -----
+$ python3 bin/lifecycle/new-artifact 01-contexto checkout Contexto do checkout --owner Jonathan Camargo
+Artefato criado: docs/areas/checkout/01-contexto/contexto-do-checkout.md
+Gate 01-contexto registrado como in_progress em docs/STATE.md.
+Preencha o template e marque status: proposed. Nunca approved.
+EXIT: 0
+
+----- 5. Mas na fase 01 codigo continua recusado -----
+$ git commit -m adiciona feature de checkout
+gate-check: nenhuma ocorrencia.
+commit-msg: codigo entrando sem fase de build aberta.
+
+  arquivos: src/app.py
+  fase corrente: 01-contexto (codigo e esperado da 13-build-log em diante)
+
+O que se perde ao seguir assim: este codigo nao tem spec que o descreva,
+nao passa por review de papel distinto do executor, e nao deixa rastro
+de qual decisao de produto o originou. Daqui a tres meses ninguem sabe
+por que ele existe.
+
+O caminho recomendado, que diz qual e a proxima fase de verdade:
+  bin/lifecycle/plan
+
+Se mesmo assim este commit precisa entrar agora, pergunte ao humano e
+registre a resposta dele no proprio commit:
+  Sem-fase: <por que entra sem fase, e quem autorizou>
+
+Nunca escreva esse trailer por conta propria. Ver AGENTS.md.
+EXIT: 1
+
+----- 6. Com autorizacao explicita do humano, passa -----
+$ git commit -m corrige timeout do gateway
+
+Sem-fase: hotfix de producao, autorizado por Jonathan Camargo
+gate-check: nenhuma ocorrencia.
+[main 271d0a5] corrige timeout do gateway
+ 1 file changed, 1 insertion(+)
+EXIT: 0
+
+----- 7. A autorizacao vazia nao passa -----
+$ git commit -m outra coisa
+
+Sem-fase:
+[PH-01] docs/STATE.md:9 1 commit(s) de codigo entraram sem fase de build aberta. Veja com: git log --grep '^Sem-fase:'
+gate-check: 0 erro(s), 1 aviso(s).
+commit-msg: Sem-fase: esta vazio.
+Pergunte ao humano e escreva a resposta dele, com nome:
+  Sem-fase: hotfix de producao, autorizado por <nome da pessoa>
+EXIT: 1
+
+----- 8. A divida aparece em toda sessao, e o rastro e permanente -----
+$ python3 bin/lifecycle/gate-check
+[PH-01] docs/STATE.md:9 1 commit(s) de codigo entraram sem fase de build aberta. Veja com: git log --grep '^Sem-fase:'
+gate-check: 0 erro(s), 1 aviso(s).
+EXIT: 0
+$ git log --grep ^Sem-fase: --oneline
+271d0a5 corrige timeout do gateway
 EXIT: 0
 ````
 
@@ -1309,9 +1514,9 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) c9c5df9] primeiro commit
+[main (root-commit) b984d63] primeiro commit
  1 file changed, 1 insertion(+)
- create mode 100644 a.txt
+ create mode 100644 docs/nota.md
 EXIT: 0
 ````
 
@@ -1327,17 +1532,17 @@ a partir do codepoint U+2014. Se o escrevesse, o arquivo do scanner seria uma
 ocorrencia e a varredura acusaria a si mesma.
 
 ````text
-$ grep -rn --exclude-dir=.git -e "<U+2014>" .
+$ grep -rn --exclude-dir=.git --exclude-dir=out -e "<U+2014>" .
 EXIT: 1
 
 $ python3 varredura de codepoints em todos os arquivos versionados
-arquivos versionados verificados: 78
+arquivos versionados verificados: 86
 ocorrencias de travessao U+2014 ou emoji: 0
 EXIT: 0
 
 $ limites de tamanho
 templates: 21 arquivos, maior tem 75 linhas, limite 80
-docs/AGENTS.md: 57 linhas, limite 60
+docs/AGENTS.md: 60 linhas, limite 60
 adapters/claude-code/CLAUDE.md: 2 linhas, exigido 2
 
 $ pastas vazias fora dos .gitkeep
@@ -1347,7 +1552,7 @@ nenhuma
 
 ## Antes de instalar num projeto real
 
-1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 27, e cada um registra uma
+1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 29, e cada um registra uma
    decisao tomada por interpretacao conservadora, nao por certeza.
 2. Rode a prova do modo B voce mesmo, do zero, sem olhar esta secao. E o modo
    sem rede de seguranca de runtime: se funciona ali, funciona em qualquer

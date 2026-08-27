@@ -132,6 +132,7 @@ def main(argv=None):
             pass
 
     rel = destino.relative_to(root).as_posix()
+    last_session_antes = state.get("last_session")
     state["last_session"] = rel
     state["session_open"] = False
     kit.write_state(root, state)
@@ -140,12 +141,44 @@ def main(argv=None):
 
     fase = state.get("current_phase") or "sem-fase"
     mensagem = "sessao %02d: %s %s" % (numero, fase, resumo_do_handoff(texto))
+    # git add e necessario: pathspec sozinho ignora arquivo nao rastreado, e o
+    # handoff nasce sempre assim. O pathspec no commit continua garantindo que
+    # o que o agente deixou em staging fora de docs/ nao entre no commit da
+    # sessao nem arraste a regra de fase para codigo.
+    docs_em_staging = kit.staged_under(root, "docs")
     kit.git(root, "add", "docs")
-    commit = kit.git(root, "commit", "-m", mensagem)
+    # Commit parcial (com pathspec) e recusado pelo git durante um merge. Nesse
+    # caso vale commitar tudo que esta em staging: e o que o merge ja juntou, e
+    # travar o fechamento da sessao seria pior.
+    if kit.merge_em_andamento(root):
+        commit = kit.git(root, "commit", "-m", mensagem)
+    else:
+        commit = kit.git(root, "commit", "-m", mensagem, "--", "docs")
     if commit.returncode != 0:
         sys.stdout.write(commit.stdout)
         sys.stderr.write(commit.stderr)
-        kit.die("session-close: o commit falhou. Veja a saida acima.", 1)
+        # O commit falhou depois de o estado ja ter mudado. Devolver a sessao e
+        # o handoff e o que torna a falha recuperavel: sem isso, o trabalho fica
+        # preso e so sai editando docs/STATE.md a mao.
+        if not mesmo_arquivo:
+            # Reescreve em vez de renomear: o handoff costuma vir de /tmp, e
+            # rename entre filesystems levanta EXDEV justamente aqui, abortando
+            # o rollback que existe para evitar o beco sem saida.
+            try:
+                origem.write_text(texto, encoding="utf-8")
+                destino.unlink()
+            except OSError:
+                pass
+        state["last_session"] = last_session_antes
+        state["session_open"] = True
+        kit.write_state(root, state)
+        # Devolve o indice ao que era: desfaz o que este script stageou e
+        # recoloca o que o agente ja tinha stageado sob docs/.
+        kit.git(root, "reset", "-q", "--", "docs")
+        if docs_em_staging:
+            kit.git(root, "add", "--", *docs_em_staging)
+        kit.die("session-close: o commit falhou, veja a saida acima. A sessao "
+                "continua aberta e o handoff intacto.", 1)
     print("Commit: %s" % mensagem)
     return 0
 

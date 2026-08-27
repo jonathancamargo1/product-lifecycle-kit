@@ -1,7 +1,7 @@
 # AGENTS
 
-Instrucoes para qualquer agente que opere este repositorio. Fonte unica de
-regras: `CLAUDE.md` apenas importa este arquivo, o Codex le direto daqui.
+Fonte unica de regras para qualquer agente aqui. `CLAUDE.md` so importa este
+arquivo; o Codex le direto daqui.
 
 ## Protocolo de sessao
 
@@ -9,25 +9,30 @@ Primeira acao da sessao e `session-open`. Ultima e `session-close`. Sem
 excecao. Se a saida de `session-open` nao esta no seu contexto, rode antes de
 qualquer outra coisa.
 
-## Comandos
-
 | Acao | Qualquer runtime | Claude Code tambem |
 |---|---|---|
 | Abrir sessao | `bin/lifecycle/session-open --agent <codex\|claude-code\|human>` | `/session-open` |
+| Ver o que falta | `bin/lifecycle/plan` | `/plan` |
 | Criar artefato | `bin/lifecycle/new-artifact <fase> <area> "<titulo>" --owner <nome> [--inputs <paths>]` | `/new-artifact` |
 | Abrir decisao | `bin/lifecycle/decide --titulo "..." --afeta <path>` | `/decide` |
 | Verificar tudo | `bin/lifecycle/gate-check` | nao ha |
 | Fechar sessao | `bin/lifecycle/session-close --handoff <arquivo>` | `/session-close` |
 
-`--inputs` e obrigatorio fora das fases 01 e 02: os paths dos artefatos em que
-este se apoia, separados por virgula. Um artefato por gate: para substituir um
-que ja existe, use `--supersede`.
+`--inputs` e obrigatorio fora das fases 01 e 02. Um artefato por gate: para
+substituir um que ja existe, use `--supersede`.
 
-## O handoff
+O handoff vai num arquivo temporario fora de `docs/_handoffs/`, com tres
+secoes nesta ordem e no maximo 15 linhas: `## Fiz`, `## Falta`, `## Cuidado
+com`. O script move para o lugar certo.
 
-Escreva num arquivo temporario fora de `docs/_handoffs/`, com exatamente estas
-tres secoes, nesta ordem, e no maximo 15 linhas de conteudo: `## Fiz`,
-`## Falta`, `## Cuidado com`. O script move para o lugar certo.
+## Codigo so da fase 13 em diante
+
+Commit que toca codigo do produto exige a fase corrente ser 13-build-log ou
+posterior. O `commit-msg` recusa fora disso e explica o que se perde. Se
+precisar entrar assim mesmo, **pergunte ao humano e espere a resposta**; com a
+autorizacao dele, registre no commit a linha `Sem-fase: <por que entra sem
+fase, e quem autorizou>`. Nunca escreva esse trailer sozinho: autorizar a si
+mesmo e o mesmo que aprovar o proprio gate, e a regra 4 proibe.
 
 ## Regras
 
@@ -47,11 +52,9 @@ tres secoes, nesta ordem, e no maximo 15 linhas de conteudo: `## Fiz`,
 
 ## O que voce pode e nao pode editar
 
-Pode: artefatos em `docs/areas/` com status `draft` ou `review`,
-`docs/STATE.md`, handoffs, e o codigo do projeto.
-
-Nao pode: `docs/_context/CONTEXT.md`, ADR `accepted`, artefato `approved`,
-`docs/_process/` inteiro, e este arquivo.
+Pode: artefatos `draft` ou `review` em `docs/areas/`, `docs/STATE.md`,
+handoffs, e o codigo do projeto. Nao pode: `docs/_context/CONTEXT.md`, ADR
+`accepted`, artefato `approved`, `docs/_process/` inteiro, e este arquivo.
 
 Nunca aprove um gate. Nunca suponha regra de negocio. Nunca edite CONTEXT.md,
 ADR aceita, artefato aprovado ou docs/_process sem decisao humana registrada.

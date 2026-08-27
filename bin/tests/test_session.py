@@ -210,6 +210,91 @@ class TestFalhaRecuperavel(SessionBase):
         self.assertIn("session_open: false", self.state_text())
 
 
+class TestSessionCloseComCodigoEmStaging(SessionBase):
+    """A regra de fase para codigo nao pode estragar o session-close."""
+
+    def test_codigo_em_staging_nao_estraga_o_commit_da_sessao(self):
+        self.git_init()
+        self.abre()
+        (self.root / "src").mkdir(exist_ok=True)
+        (self.root / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+        import subprocess
+        subprocess.run(["git", "add", "src/app.py"], cwd=str(self.root),
+                       capture_output=True)
+        nome = self.handoff()
+        result = self.run_script("session-close", "--handoff", nome)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("session_open: false", self.state_text())
+        log = self._git("log", "-1", "--pretty=%s").stdout.strip()
+        self.assertTrue(log.startswith("sessao 01:"), "commit da sessao: %r" % log)
+
+    def test_falha_no_commit_devolve_a_sessao(self):
+        """Se o commit falhar, a sessao volta a estar aberta e recuperavel."""
+        self.git_init()
+        self.abre()
+        nome = self.handoff()
+        # impede o commit sem impedir o gate-check
+        (self.root / ".git" / "hooks").mkdir(parents=True, exist_ok=True)
+        hook = self.root / ".git" / "hooks" / "commit-msg"
+        hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        hook.chmod(0o755)
+        result = self.run_script("session-close", "--handoff", nome)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("session_open: true", self.state_text(),
+                      "a sessao ficou fechada apesar de o commit ter falhado")
+        self.assertTrue((self.root / nome).exists(),
+                        "o handoff foi consumido apesar da falha")
+
+
+class TestCommitDaSessaoPegaTudo(SessionBase):
+    def test_handoff_e_artefato_novos_entram_no_commit(self):
+        """Arquivo novo sob docs/ precisa entrar: commit com pathspec sozinho
+        ignora untracked, e o handoff nasce untracked sempre."""
+        import subprocess
+        self.git_init()
+        self.abre()
+        alvo = self.write_artifact("nucleo", "01-contexto", "contexto")
+        nome = self.handoff()
+        result = self.run_script("session-close", "--handoff", nome)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rastreados = self._git("ls-files").stdout
+        self.assertIn("docs/_handoffs/", rastreados, "handoff ficou de fora")
+        self.assertIn(alvo, rastreados, "artefato ficou de fora")
+        sobrou = self._git("status", "--short").stdout
+        self.assertNotIn("??", sobrou, "sobrou arquivo nao rastreado: %s" % sobrou)
+
+    def test_staging_do_agente_fora_de_docs_e_preservado(self):
+        import subprocess
+        self.git_init()
+        self.abre()
+        (self.root / "src").mkdir(exist_ok=True)
+        (self.root / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "src/app.py"], cwd=str(self.root),
+                       capture_output=True)
+        self.write_artifact("nucleo", "01-contexto", "contexto")
+        nome = self.handoff()
+        self.assertEqual(
+            self.run_script("session-close", "--handoff", nome).returncode, 0)
+        staged = self._git("diff", "--cached", "--name-only").stdout
+        self.assertIn("src/app.py", staged,
+                      "o session-close mexeu no staging do agente")
+
+
+class TestSessionCloseDuranteMerge(SessionBase):
+    def test_fecha_sessao_com_merge_em_andamento(self):
+        """git recusa commit parcial durante merge: o fechamento nao pode travar."""
+        self.git_init()
+        self.abre()
+        self.write_artifact("nucleo", "01-contexto", "contexto")
+        sha = self._git("rev-parse", "HEAD").stdout.strip()
+        (self.root / ".git" / "MERGE_HEAD").write_text(sha + "\n",
+                                                       encoding="utf-8")
+        nome = self.handoff()
+        result = self.run_script("session-close", "--handoff", nome)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("session_open: false", self.state_text())
+
+
 class TestDecide(SessionBase):
     def test_cria_entrada_pendente_e_bloqueia_o_estado(self):
         result = self.run_script(

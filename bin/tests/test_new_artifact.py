@@ -161,6 +161,51 @@ class TestNewArtifact(KitTestCase):
         self.assertIn("tier", (result.stdout + result.stderr).lower())
         self.assertFalse((self.root / "docs" / "areas" / "nucleo").exists())
 
+    def test_painel_lista_as_fases_que_faltam(self):
+        """O painel mentia por omissao: so mostrava o que existia."""
+        self.novo("01-contexto", "nucleo", "Contexto", "--owner", "Jonathan Camargo")
+        painel = (self.root / "docs" / "areas" / "nucleo" / "README.md").read_text(
+            encoding="utf-8")
+        for slug in ("13-build-log", "14-review", "17-ship"):
+            self.assertIn(slug, painel, "fase que falta nao aparece no painel")
+        self.assertIn("pendente", painel)
+        self.assertIn("01-contexto", painel)
+
+    def test_painel_nao_lista_fase_fora_do_tier(self):
+        self.novo("01-contexto", "nucleo", "Contexto", "--owner", "Jonathan Camargo")
+        painel = (self.root / "docs" / "areas" / "nucleo" / "README.md").read_text(
+            encoding="utf-8")
+        self.assertNotIn("05-prd", painel)
+        self.assertNotIn("20-retro", painel)
+
+    def test_painel_nao_diz_pendente_para_artefato_que_existe_na_area(self):
+        """Gates sao chaveados so pela fase (Q2).
+
+        Se a area B sobrescreveu o gate 01, o painel da area A nao pode dizer
+        que a fase 01 dela esta pendente: o artefato esta la, em disco.
+        """
+        self.novo("01-contexto", "areaA", "Contexto A", "--owner", "Jonathan Camargo")
+        self.novo("01-contexto", "areaB", "Contexto B", "--owner", "Ana Souza")
+        painel = (self.root / "docs" / "areas" / "areaA" / "README.md").read_text(
+            encoding="utf-8")
+        linha = [l for l in painel.splitlines() if l.startswith("| 01-contexto")][0]
+        self.assertIn("contexto-a.md", linha,
+                      "o painel da areaA perdeu o artefato dela: %s" % linha)
+        self.assertNotIn("pendente", linha)
+
+    def test_painel_usa_o_mesmo_vocabulario_de_status_nas_duas_areas(self):
+        """Coluna Status nao pode misturar status de gate com o do frontmatter."""
+        self.novo("01-contexto", "areaA", "Contexto A", "--owner", "Jonathan Camargo")
+        self.novo("01-contexto", "areaB", "Contexto B", "--owner", "Ana Souza")
+        def status_de(area):
+            painel = (self.root / "docs" / "areas" / area / "README.md").read_text(
+                encoding="utf-8")
+            linha = [l for l in painel.splitlines() if l.startswith("| 01-contexto")][0]
+            return linha.split("|")[3].strip()
+        self.assertEqual(status_de("areaA"), status_de("areaB"),
+                         "as duas areas acabaram de criar a fase 01 e mostram "
+                         "status diferentes")
+
     def test_o_resultado_passa_no_gate_check(self):
         self.novo("01-contexto", "onboarding", "Contexto", "--owner", "Jonathan Camargo")
         result = self.run_script("gate-check")

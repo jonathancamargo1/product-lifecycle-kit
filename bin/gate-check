@@ -351,6 +351,25 @@ def check_dirs(root, report):
                      "pasta vazia. Estrutura so nasce quando o artefato nasce.")
 
 
+def check_code_phase(root, report):
+    """PH-01. Aviso, nunca erro.
+
+    Cada commit com o trailer de autorizacao e um pedaco de codigo que entrou
+    sem spec e sem review. E legitimo, foi autorizado, mas nao pode sumir de
+    vista: o contador aparece em toda sessao, porque session-open roda o
+    gate-check.
+    """
+    if not hasattr(kit, "commits_sem_fase"):
+        return
+    quantos = kit.commits_sem_fase(root)
+    if not quantos:
+        return
+    report.aviso("PH-01", "docs/STATE.md", state_line(root, "current_phase"),
+                 "%d commit(s) de codigo entraram sem fase de build aberta. "
+                 "Veja com: git log --grep '^%s'"
+                 % (quantos, kit.CODE_TRAILER))
+
+
 def check_kit_version(root, report):
     """KV-01."""
     path = Path(root) / "docs" / "KIT_VERSION"
@@ -395,6 +414,7 @@ def main(argv=None):
     check_decisions(root, report, state)
     check_vocabulary(root, report)
     check_dirs(root, report)
+    check_code_phase(root, report)
     check_kit_version(root, report)
 
     codigo = report.exit_code

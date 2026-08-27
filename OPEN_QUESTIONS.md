@@ -403,3 +403,77 @@ alguem tente de novo sem resolver Q2 antes.
 
 Efeito: `bin/gate-check`, `bin/new-artifact`, `install.sh`,
 `bin/tests/test_gate_check.py`, `bin/tests/test_new_artifact.py`.
+
+## Q28. `bin/plan`, e por que o painel nao bastava
+
+A especificacao nao pede um comando de plano. Na pratica faltava: o painel da
+area lista o que existe, e o `gate-check` verifica o que existe. Nenhum dos
+dois sabe dizer o que nunca foi comecado. Num projeto tier 2 com uma unica
+fase criada, o painel mostrava uma linha e o `gate-check` saia 0, entao um
+projeto com 11 de 12 fases faltando parecia completo.
+
+Interpretacao adotada: `bin/plan` compara as fases obrigatorias do tier com os
+gates existentes, imprime as que faltam em ordem e monta a proxima acao pronta
+para copiar. O painel da area passou a listar as fases pendentes tambem, pelo
+mesmo motivo: por omissao, ele mentia.
+
+Consequencia aceita em projeto multi area: cada painel lista todas as fases
+obrigatorias do tier, inclusive as que aquela area ainda nao comecou, e o
+`Status geral` daquela area so fica `concluida` quando ela mesma fechou todas.
+Isso e ruido quando as areas dividem fases entre si de proposito, e e a
+resposta certa quando cada area e uma fatia de produto que percorre o ciclo
+inteiro. O kit assume a segunda leitura. Se a sua for a primeira, o painel vai
+parecer pessimista, e o `plan` tambem: os dois sao area cega, como o mapa de
+gates (Q2).
+
+Efeito: `bin/plan`, `bin/_kitlib.py` (`refresh_area_panels`),
+`docs/_process/session-protocol.md`, adaptador do Claude Code (`/plan`).
+
+## Q29. Codigo entrando sem fase de build
+
+Medido antes de existir a regra: um agente commitava feature atras de feature
+sem nunca rodar `session-open` nem criar artefato, e o `gate-check` respondia
+"nenhuma ocorrencia", exit 0. O kit garantia integridade e ordem de quem
+estava usando, e nada sobre alguma fase acontecer.
+
+Interpretacao adotada, decidida com o dono do kit: **nao** e bloqueio
+automatico. Commit que toca codigo do produto exige a fase corrente ser
+`13-build-log` ou posterior; fora disso o `commit-msg` recusa, nomeia os
+arquivos, e diz o que se perde (codigo sem spec, sem review de papel distinto,
+sem rastro da decisao que o originou).
+
+A saida exige ato deliberado: a linha `Sem-fase: <motivo, e quem autorizou>`
+no proprio commit. Tres consequencias de desenho:
+
+- Quem autoriza e humano. `AGENTS.md` proibe o agente de escrever o trailer
+  por conta propria, com a analogia direta: autorizar a si mesmo e o mesmo que
+  aprovar o proprio gate.
+- A autorizacao fica registrada no commit, nao num arquivo que alguem limpa
+  depois. Com a ressalva abaixo sobre reescrita de historico.
+- `gate-check` conta quantas existem (`PH-01`, aviso) e mostra em toda sessao,
+  porque `session-open` roda o `gate-check`. A divida nao some de vista.
+
+Os limites que ficam, e nenhum hook fecha:
+
+- O trailer e texto de commit, entao um agente que decida mentir consegue
+  escreve-lo sozinho. O `commit-msg` recusa o texto de exemplo da propria
+  mensagem, para copiar e colar nao contar como autorizacao, mas nao ha como
+  distinguir um motivo inventado de um motivo real.
+- `git commit --amend` sem mudanca de arquivo nao apresenta codigo em staging,
+  entao a regra nao dispara, e a mensagem pode perder o trailer. `git rebase`,
+  `git filter-branch` e afins reescrevem historico da mesma forma. Isso vale
+  para qualquer registro que viva em mensagem de commit, em qualquer
+  repositorio.
+- `git commit --no-verify` (Q23) pula os hooks por completo.
+
+O kit torna o desvio caro, visivel e rastreavel; nao torna impossivel. Quem
+precisa de garantia forte contra reescrita de historico precisa de protecao de
+branch no servidor, que e camada que um kit de arquivos nao alcanca.
+
+A partir de que fase codigo e legitimo esta em `_kitlib.CODE_PHASE_FROM`, hoje
+13. O SQ-01 garante que tudo que o tier exige antes da 13 ja esta aprovado
+quando ela abre, entao exigir a 13 e o mesmo que exigir o PRD, a spec e o
+backlog nos tiers que os tem.
+
+Efeito: `git-hooks/commit-msg`, `bin/gate-check` (PH-01), `bin/_kitlib.py`,
+`docs/AGENTS.md`, `docs/_process/lifecycle.md`.

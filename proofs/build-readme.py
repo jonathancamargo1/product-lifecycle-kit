@@ -95,7 +95,7 @@ garantias que existem sem rede de seguranca de runtime:
 - o `commit-msg` recusa `sessao 99` quando o `session_counter` nao bate (8), e
   a mesma mudanca passa com uma mensagem que nao e de sessao (8a).""", "prova-b.out"),
     ("### Modo C: atualizacao", """`proofs/modo-c-update.sh`. Com o projeto `prova-b` ja instalado na versao
-1.0.0, monta uma copia temporaria do kit na versao 1.1.0, com a secao
+1.1.0, monta uma copia temporaria do kit na versao 1.2.0, com a secao
 correspondente no `CHANGELOG.md`, e roda o `install.sh` dessa copia com
 `--update`.
 
@@ -112,6 +112,16 @@ com `gate-check` exit 0 e os dois git hooks instalados. E o caso que prova o
 principio 12, o de que o nucleo nao depende de agente nenhum. Repare tambem no
 aviso impresso no fim: sem `tier` declarado o kit nao sabe o que exigir, e diz
 isso em vez de deixar passar.""", "prova-none.out"),
+    ("### Codigo entra a partir da fase 13", """`proofs/fase-para-codigo.sh`. Instala num repositorio que ja tem codigo,
+declara tier 2, e tenta subir uma feature sem nenhuma fase comecada.
+
+Demonstra: o `plan` mostrando as 12 fases pendentes (2); a recusa do
+`commit-msg` com os arquivos e o custo na tela (3); o caminho recomendado
+funcionando (4); a recusa continuando de pe na fase 01, porque codigo e
+esperado da 13 em diante (5); a autorizacao explicita do humano deixando o
+commit passar (6); a autorizacao sem motivo sendo recusada (7); e a divida
+aparecendo no `gate-check` como `PH-01` com o rastro permanente no git log
+(8).""", "fase-para-codigo.out"),
     ("### Encadeamento de hooks e merge de settings", """`proofs/encadeamento.sh`. A secao 13 exige que `install.sh` encadeie um hook de
 git que ja exista, em vez de sobrescrever, e que mescle os hooks num
 `.claude/settings.json` do projeto sem remover os que ja estavam la. Esta prova
@@ -129,7 +139,7 @@ ocorrencia e a varredura acusaria a si mesma.""", "varredura.out"),
 prova = ["""
 ## Prova de funcionamento
 
-Tudo abaixo e saida real, colada sem edicao, gerada com o kit na versao 1.0.0.
+Tudo abaixo e saida real, colada sem edicao, gerada com o kit na versao 1.1.0.
 Os scripts que produzem cada bloco estao em `proofs/` e podem ser rodados de
 novo do zero. Nenhum deles altera o kit: a prova do modo C monta a versao nova
 numa copia temporaria, justamente para que os outros blocos continuem
@@ -142,7 +152,7 @@ partes.append("".join(prova))
 partes.append("""
 ## Antes de instalar num projeto real
 
-1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 27, e cada um registra uma
+1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 29, e cada um registra uma
    decisao tomada por interpretacao conservadora, nao por certeza.
 2. Rode a prova do modo B voce mesmo, do zero, sem olhar esta secao. E o modo
    sem rede de seguranca de runtime: se funciona ali, funciona em qualquer
