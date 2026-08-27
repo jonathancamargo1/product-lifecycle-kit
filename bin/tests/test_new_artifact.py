@@ -141,6 +141,16 @@ class TestNewArtifact(KitTestCase):
                            "--owner", "Ana Souza", "--supersede")
         self.assertEqual(result.returncode, 1)
 
+    def test_outra_area_pode_criar_a_mesma_fase(self):
+        """O bloqueio de um artefato por gate e por area, nao global."""
+        self.novo("01-contexto", "checkout", "Contexto do checkout",
+                  "--owner", "Jonathan Camargo")
+        result = self.novo("01-contexto", "onboarding", "Contexto do onboarding",
+                           "--owner", "Ana Souza")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue((self.root / "docs" / "areas" / "onboarding"
+                         / "01-contexto" / "contexto-do-onboarding.md").exists())
+
     def test_o_resultado_passa_no_gate_check(self):
         self.novo("01-contexto", "onboarding", "Contexto", "--owner", "Jonathan Camargo")
         result = self.run_script("gate-check")

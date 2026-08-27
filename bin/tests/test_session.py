@@ -183,6 +183,33 @@ class TestHandoffNoDestino(SessionBase):
         self.assertEqual(result.returncode, 0)
 
 
+class TestFalhaRecuperavel(SessionBase):
+    """gate-check falhando nao pode deixar a sessao num beco sem saida."""
+
+    def test_gate_check_falhando_deixa_a_sessao_retomavel(self):
+        self.git_init()
+        self.abre()
+        self.write_artifact("nucleo", "01-contexto", "contexto", status="invalido")
+        nome = self.handoff()
+        result = self.run_script("session-close", "--handoff", nome)
+        self.assertEqual(result.returncode, 1)
+
+        texto = self.state_text()
+        self.assertIn("session_open: true", texto,
+                      "a sessao ficou fechada apesar da falha")
+        self.assertIn("last_session: null", texto,
+                      "last_session avancou apesar da falha")
+        self.assertTrue((self.root / nome).exists(),
+                        "o handoff foi consumido apesar da falha")
+
+        # corrigido o erro, o mesmo comando conclui
+        (self.root / "docs" / "areas" / "nucleo" / "01-contexto"
+         / "contexto.md").unlink()
+        segunda = self.run_script("session-close", "--handoff", nome)
+        self.assertEqual(segunda.returncode, 0, segunda.stdout + segunda.stderr)
+        self.assertIn("session_open: false", self.state_text())
+
+
 class TestDecide(SessionBase):
     def test_cria_entrada_pendente_e_bloqueia_o_estado(self):
         result = self.run_script(

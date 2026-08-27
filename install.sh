@@ -10,16 +10,20 @@ KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ALVO=""
 ADAPTERS="all"
 UPDATE=0
-PULADOS=()
-REAPROVEITADOS=()
-REVISAR=()
+# Listas como texto, uma entrada por linha. Array vazio sob "set -u" aborta
+# em bash 3.2, que e o /bin/bash do macOS.
+PULADOS=""
+REAPROVEITADOS=""
+REVISAR=""
 
 erro() { printf 'install.sh: %s\n' "$1" >&2; exit 1; }
 info() { printf '%s\n' "$1"; }
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --adapters) ADAPTERS="${2:-}"; shift 2 ;;
+        --adapters)
+            [ $# -ge 2 ] || erro "--adapters exige um valor: all, none ou uma lista."
+            ADAPTERS="$2"; shift 2 ;;
         --adapters=*) ADAPTERS="${1#*=}"; shift ;;
         --update) UPDATE=1; shift ;;
         -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
@@ -69,7 +73,7 @@ copia() {
     local origem="$1" rel="$2" destino="$ALVO/$2"
     mkdir -p "$(dirname "$destino")"
     if [ -e "$destino" ] && [ "$UPDATE" -eq 0 ]; then
-        PULADOS+=("$rel")
+        PULADOS="$PULADOS$rel\n"
         return 0
     fi
     cp "$origem" "$destino"
@@ -80,13 +84,13 @@ copia_atualizavel() {
     # no --update, respeita customizacao do projeto.
     local origem="$1" rel="$2" destino="$ALVO/$2"
     if [ "$UPDATE" -eq 1 ] && customizado "$rel"; then
-        REVISAR+=("$rel")
+        REVISAR="$REVISAR$rel\n"
         [ -f "$destino" ] && printf '%s  %s\n' "$(soma "$destino")" "$rel" >> "$MANIFESTO.novo"
         return 0
     fi
     mkdir -p "$(dirname "$destino")"
     if [ -e "$destino" ] && [ "$UPDATE" -eq 0 ]; then
-        PULADOS+=("$rel")
+        PULADOS="$PULADOS$rel\n"
         [ -f "$destino" ] && printf '%s  %s\n' "$(soma "$destino")" "$rel" >> "$MANIFESTO.novo"
         return 0
     fi
@@ -164,8 +168,13 @@ instala_adaptador_claude() {
     while IFS= read -r origem; do
         rel=".claude/${origem#"$KIT_DIR/adapters/claude-code/.claude/"}"
         if [ "$rel" = ".claude/settings.json" ] && [ -f "$ALVO/$rel" ]; then
-            python3 "$KIT_DIR/adapters/claude-code/merge-settings.py" "$origem" "$ALVO/$rel" \
-                && info "  .claude/settings.json existente teve os hooks mesclados"
+            if python3 "$KIT_DIR/adapters/claude-code/merge-settings.py" \
+                    "$origem" "$ALVO/$rel"; then
+                info "  .claude/settings.json existente teve os hooks mesclados"
+            else
+                info "  .claude/settings.json NAO foi alterado, veja o erro acima."
+                info "  Os hooks do kit nao estao ativos ate voce resolver isso."
+            fi
             printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
             continue
         fi
@@ -210,15 +219,15 @@ if [ -d "$ALVO/docs/templates" ]; then
     while IFS= read -r antigo; do
         nome="$(basename "$antigo")"
         if [ -f "$KIT_DIR/docs/_process/templates/$nome" ]; then
-            REAPROVEITADOS+=("$nome")
+            REAPROVEITADOS="$REAPROVEITADOS$nome\n"
             cp "$antigo" "$ALVO/docs/_process/templates/$nome"
         else
-            REAPROVEITADOS+=("$nome (sem equivalente, movido)")
+            REAPROVEITADOS="$REAPROVEITADOS$nome (sem equivalente, movido)\n"
             cp "$antigo" "$ALVO/docs/_process/templates/$nome"
         fi
     done < <(find "$ALVO/docs/templates" -maxdepth 1 -type f -name '*.md' | sort)
     info "  templates reaproveitados no lugar dos novos, um conjunto so:"
-    for item in "${REAPROVEITADOS[@]:-}"; do [ -n "$item" ] && info "    $item"; done
+    printf '%b' "$REAPROVEITADOS" | sed 's/^/    /'
     info "  ATENCAO: os templates reaproveitados sao os seus, nao os do kit."
     info "  Eles nao foram validados contra a estrutura nova (Gate de saida,"
     info "  Anti-padroes, Modo reverso). Confira um a um antes de usar."
@@ -231,15 +240,15 @@ printf '%s  %s\n' "$(soma "$ALVO/docs/KIT_VERSION")" "docs/KIT_VERSION" >> "$MAN
 mv "$MANIFESTO.novo" "$MANIFESTO"
 
 # 8. relatorio
-if [ "${#PULADOS[@]}" -gt 0 ]; then
+if [ -n "$PULADOS" ]; then
     info ""
     info "Arquivos que ja existiam e foram preservados:"
-    for item in "${PULADOS[@]}"; do info "  $item"; done
+    printf '%b' "$PULADOS" | sed 's/^/  /'
 fi
-if [ "${#REVISAR[@]}" -gt 0 ]; then
+if [ -n "$REVISAR" ]; then
     info ""
     info "Customizados pelo projeto, nao substituidos. Revise a mao:"
-    for item in "${REVISAR[@]}"; do info "  $item"; done
+    printf '%b' "$REVISAR" | sed 's/^/  /'
 fi
 if [ "$UPDATE" -eq 1 ] && [ -f "$KIT_DIR/CHANGELOG.md" ]; then
     info ""

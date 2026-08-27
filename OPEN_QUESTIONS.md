@@ -330,3 +330,33 @@ tocado, e o modo C pode rodar quantas vezes for preciso, sempre com o mesmo
 resultado.
 
 Efeito: `proofs/modo-c-update.sh`, versao publicada do kit.
+
+## Q25. Como o `install.sh --update` consegue ser commitado
+
+`docs/_process/**` e glob protegido, e `--update` reescreve exatamente esses
+arquivos. Uma revisao encontrou o impasse: depois de uma atualizacao legitima
+do kit, o projeto nao conseguia commitar o resultado.
+
+Interpretacao adotada: `guard-commit` libera um path protegido quando o
+sha256 do conteudo em staging bate com o que `install.sh` gravou em
+`docs/.kit-manifest`. So o conteudo que o proprio kit instalou passa; qualquer
+edicao a mao no mesmo arquivo continua barrada, porque o hash deixa de bater.
+
+Nao e porta dos fundos: para burlar, o agente teria que reproduzir byte a byte
+um arquivo do kit, que e o mesmo que nao ter mudado nada.
+
+Efeito: `bin/_kitlib.py`, `bin/guard-commit`, `bin/tests/test_guards.py`.
+
+## Q26. `session-close` roda o gate-check antes de mexer no estado
+
+A secao 9 descreve a ordem: mover o handoff, atualizar `last_session`, marcar
+`session_open: false`, rodar `gate-check`, commitar se sair 0. Seguir isso ao
+pe da letra criava um beco sem saida: com o gate falhando, a sessao ficava
+fechada, nada era commitado, e `session-close` recusava rodar de novo por nao
+haver sessao aberta. So dava para sair editando `docs/STATE.md` a mao.
+
+Interpretacao adotada: `gate-check` roda antes de qualquer mutacao. No caminho
+feliz o resultado e identico ao da secao 9. No caminho de erro a sessao
+continua aberta e o handoff intacto, entao basta corrigir e rodar de novo.
+
+Efeito: `bin/session-close`, `bin/tests/test_session.py`.

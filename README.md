@@ -214,6 +214,7 @@ bin/
     kitfixture.py
     test_gate_check.py
     test_guards.py
+    test_kitlib.py
     test_new_artifact.py
     test_session.py
 docs/
@@ -447,13 +448,13 @@ reproduziveis.
 ### Testes
 
 Um caso que passa e um que falha para cada codigo de `gate-check`, mais os
-testes dos guards, das sessoes e do `new-artifact`.
+testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 
 ```text
 $ python3 -m unittest discover bin/tests
-.........................................................................................................
+.................................................................................................................
 ----------------------------------------------------------------------
-Ran 105 tests in 11.911s
+Ran 113 tests in 9.778s
 
 OK
 EXIT: 0
@@ -700,8 +701,8 @@ artefato docs/areas/nucleo/01-contexto/contexto-do-prova-a.md marcado proposed p
 
 ----- 3d. session-close com handoff -----
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-a.md
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-01.md.
 gate-check: nenhuma ocorrencia.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-01.md.
 Commit: sessao 01: 01-contexto escrevi o contexto e o nao-escopo
 EXIT: 0
 
@@ -737,8 +738,8 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/13-build-log/build-do-prova-a.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-a.md
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-02.md.
 gate-check: nenhuma ocorrencia.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-02.md.
 Commit: sessao 02: 13-build-log executei a fase 13-build
 EXIT: 0
 gate 13-build-log aprovado por Jonathan Camargo em 2026-08-27
@@ -756,8 +757,8 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/14-review/review-do-prova-a.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-a.md
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-03.md.
 gate-check: nenhuma ocorrencia.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-03.md.
 Commit: sessao 03: 14-review executei a fase 14-review
 EXIT: 0
 gate 14-review aprovado por Jonathan Camargo em 2026-08-27
@@ -775,8 +776,8 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/17-ship/ship-do-prova-a.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-a.md
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-04.md.
 gate-check: nenhuma ocorrencia.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-04.md.
 Commit: sessao 04: 17-ship executei a fase 17-ship
 EXIT: 0
 gate 17-ship aprovado por Jonathan Camargo em 2026-08-27
@@ -824,15 +825,15 @@ session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-d00327e humano aprova o gate 17-ship
-b5087ad sessao 04: 17-ship executei a fase 17-ship
-d124102 humano aprova o gate 14-review
-5edbccd sessao 03: 14-review executei a fase 14-review
-628bd4c humano aprova o gate 13-build-log
-dc9c295 sessao 02: 13-build-log executei a fase 13-build
-c380119 humano aprova o gate 01-contexto
-545de51 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-8ffd322 instala o product-lifecycle-kit
+74877f7 humano aprova o gate 17-ship
+a0a3cb7 sessao 04: 17-ship executei a fase 17-ship
+8c592d7 humano aprova o gate 14-review
+90c98d5 sessao 03: 14-review executei a fase 14-review
+17cfb0f humano aprova o gate 13-build-log
+9ce7b5b sessao 02: 13-build-log executei a fase 13-build
+664b973 humano aprova o gate 01-contexto
+ceb72eb sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+0cddbe0 instala o product-lifecycle-kit
 EXIT: 0
 ```
 
@@ -900,8 +901,8 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/01-contexto/contexto-do-prova-b.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-01.md.
 gate-check: nenhuma ocorrencia.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-01.md.
 Commit: sessao 01: 01-contexto escrevi o contexto e o nao-escopo
 EXIT: 0
 gate 01-contexto aprovado por Jonathan Camargo em 2026-08-27
@@ -918,8 +919,8 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/13-build-log/build-do-prova-b.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-02.md.
 gate-check: nenhuma ocorrencia.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-02.md.
 Commit: sessao 02: 13-build-log executei a fase 13-build
 EXIT: 0
 gate 13-build-log aprovado por Jonathan Camargo em 2026-08-27
@@ -936,8 +937,8 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/14-review/review-do-prova-b.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-03.md.
 gate-check: nenhuma ocorrencia.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-03.md.
 Commit: sessao 03: 14-review executei a fase 14-review
 EXIT: 0
 gate 14-review aprovado por Jonathan Camargo em 2026-08-27
@@ -954,8 +955,8 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/17-ship/ship-do-prova-b.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-04.md.
 gate-check: nenhuma ocorrencia.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-04.md.
 Commit: sessao 04: 17-ship executei a fase 17-ship
 EXIT: 0
 gate 17-ship aprovado por Jonathan Camargo em 2026-08-27
@@ -975,15 +976,15 @@ EXIT: 1
 
 ----- 5a. O mesmo commit passa depois do session-close -----
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-05.md.
 gate-check: nenhuma ocorrencia.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-05.md.
 Commit: sessao 05: 17-ship trabalho da sessao 05
 EXIT: 0
 
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main a608d04] commit de codigo com a sessao aberta
+[main 38e53eb] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1001,7 +1002,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-b563235 humano aprova o gate 01-contexto
+90f9f1c humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1012,7 +1013,7 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main ba1b5af] corrige o artefato aprovado sob a decisao D-0001
+[main 34c894f] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
@@ -1027,7 +1028,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main ddee3bd] adiciona uma nota solta
+[main 4694c15] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1037,20 +1038,20 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-ddee3bd adiciona uma nota solta
-ba1b5af corrige o artefato aprovado sob a decisao D-0001
-69cc062 sessao 06: 17-ship commit de codigo
-a608d04 commit de codigo com a sessao aberta
-b02e417 sessao 05: 17-ship trabalho da sessao 05
-514e255 humano aprova o gate 17-ship
-4d5a06f sessao 04: 17-ship executei a fase 17-ship
-be7df99 humano aprova o gate 14-review
-8216f89 sessao 03: 14-review executei a fase 14-review
-f2e7965 humano aprova o gate 13-build-log
-bf09e2e sessao 02: 13-build-log executei a fase 13-build
-b563235 humano aprova o gate 01-contexto
-c6a2c24 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-47ab6a1 instala o product-lifecycle-kit
+4694c15 adiciona uma nota solta
+34c894f corrige o artefato aprovado sob a decisao D-0001
+37ebb6a sessao 06: 17-ship commit de codigo
+38e53eb commit de codigo com a sessao aberta
+1c5fa32 sessao 05: 17-ship trabalho da sessao 05
+c8e14aa humano aprova o gate 17-ship
+6e73f19 sessao 04: 17-ship executei a fase 17-ship
+0733a6e humano aprova o gate 14-review
+0b78b70 sessao 03: 14-review executei a fase 14-review
+68841fe humano aprova o gate 13-build-log
+541337b sessao 02: 13-build-log executei a fase 13-build
+90f9f1c humano aprova o gate 01-contexto
+c2187bb sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+9e534c4 instala o product-lifecycle-kit
 EXIT: 0
 ```
 
@@ -1065,6 +1066,10 @@ O que a prova mede: uma soma sha256 de tudo que o `--update` tem proibido
 tocar, tirada antes e depois. `docs/STATE.md`, `docs/_handoffs/` e
 `docs/areas/` ficam identicos; so `docs/KIT_VERSION`, os scripts e o manifesto
 mudam. O bloco 6 mostra que o kit real continua na versao de antes.
+
+Os arquivos de processo que o `--update` reescreve podem ser commitados porque
+`guard-commit` reconhece, pelo sha256 em `docs/.kit-manifest`, o que o proprio
+kit instalou. Edicao a mao no mesmo arquivo continua barrada.
 
 ```text
 
@@ -1124,8 +1129,6 @@ EXIT: 0
 
 ----- 6. O kit real continua na versao de antes -----
 $ git -C /home/user/product-lifecycle-kit status --short VERSION CHANGELOG.md bin/_kitlib.py
- M CHANGELOG.md
- M VERSION
  M bin/_kitlib.py
 EXIT: 0
 
@@ -1155,8 +1158,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 2341 Aug 27 00:04 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 27 00:04 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 2341 Aug 27 03:20 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 27 03:20 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1215,7 +1218,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) 4be2384] primeiro commit
+[main (root-commit) 110120d] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 a.txt
 EXIT: 0
@@ -1237,7 +1240,7 @@ $ grep -rn --exclude-dir=.git -e "<U+2014>" .
 EXIT: 1
 
 $ python3 varredura de codepoints em todos os arquivos versionados
-arquivos versionados verificados: 76
+arquivos versionados verificados: 77
 ocorrencias de travessao U+2014 ou emoji: 0
 EXIT: 0
 
@@ -1253,7 +1256,7 @@ nenhuma
 
 ## Antes de instalar num projeto real
 
-1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 24, e cada um registra uma
+1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 26, e cada um registra uma
    decisao tomada por interpretacao conservadora, nao por certeza.
 2. Rode a prova do modo B voce mesmo, do zero, sem olhar esta secao. E o modo
    sem rede de seguranca de runtime: se funciona ali, funciona em qualquer

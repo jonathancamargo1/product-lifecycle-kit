@@ -6,6 +6,7 @@ nada.
 """
 import datetime
 import fnmatch
+import hashlib
 import os
 import re
 import subprocess
@@ -189,7 +190,9 @@ def emit_scalar(value):
     text = str(value)
     if text == "" or text != text.strip():
         return '"%s"' % text
-    if text in ("null", "true", "false") or ": " in text or text.startswith("#"):
+    if text in ("null", "true", "false") or ": " in text or "#" in text:
+        # _strip_comment corta em qualquer " #", entao todo texto com cerquilha
+        # precisa sair entre aspas ou nao sobrevive ao round-trip.
         return '"%s"' % text
     return text
 
@@ -417,6 +420,39 @@ def protection_reason(root, rel_path, content_reader=None):
     return None
 
 
+def manifest_hashes(root):
+    """sha256 por path, como install.sh gravou em docs/.kit-manifest."""
+    caminho = Path(root) / "docs" / ".kit-manifest"
+    if not caminho.exists():
+        return {}
+    somas = {}
+    try:
+        for linha in caminho.read_text(encoding="utf-8").splitlines():
+            partes = linha.split(None, 1)
+            if len(partes) == 2:
+                somas[partes[1].strip()] = partes[0].strip()
+    except OSError:
+        return {}
+    return somas
+
+
+def matches_manifest(root, rel_path, conteudo):
+    """True se o conteudo e exatamente o que o kit instalou nesse path.
+
+    E o que destrava `install.sh --update`: os arquivos de processo que o kit
+    reescreveu precisam poder ser commitados, sem que isso vire porta dos
+    fundos. Conteudo editado a mao nao casa com o manifesto e continua barrado.
+    """
+    if conteudo is None:
+        return False
+    esperado = manifest_hashes(root).get(rel_path)
+    if not esperado:
+        return False
+    if isinstance(conteudo, str):
+        conteudo = conteudo.encode("utf-8")
+    return hashlib.sha256(conteudo).hexdigest() == esperado
+
+
 def blocking_reason(root, rel_path, content_reader=None):
     """Motivo para recusar a escrita, ou None se liberado.
 
@@ -429,6 +465,14 @@ def blocking_reason(root, rel_path, content_reader=None):
     if decision_releases(root, rel_path, last_modified(root, rel_path)):
         return None
     return motivo
+
+
+def staged_content(root, rel_path):
+    resultado = subprocess.run(["git", "show", ":%s" % rel_path], cwd=str(root),
+                               capture_output=True)
+    if resultado.returncode != 0:
+        return None
+    return resultado.stdout
 
 
 def _read_disk(root, rel_path):

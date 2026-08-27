@@ -196,6 +196,36 @@ class TestGuardCommit(KitTestCase):
         self._add()
         self.assertEqual(self.guard().returncode, 0)
 
+    def test_permite_arquivo_de_processo_que_veio_do_kit(self):
+        """install.sh --update reescreve docs/_process. O commit precisa passar."""
+        import hashlib
+        self.git_init()
+        alvo = self.root / "docs" / "_process" / "tiers.md"
+        alvo.write_text(alvo.read_text(encoding="utf-8") + "\nlinha nova do kit\n",
+                        encoding="utf-8")
+        soma = hashlib.sha256(alvo.read_bytes()).hexdigest()
+        (self.root / "docs" / ".kit-manifest").write_text(
+            "%s  docs/_process/tiers.md\n" % soma, encoding="utf-8")
+        self._add()
+        self.assertEqual(self.guard().returncode, 0, self.guard().stderr)
+
+    def test_bloqueia_arquivo_de_processo_editado_a_mao(self):
+        """Manifesto nao vira porta dos fundos: so o conteudo do kit passa."""
+        import hashlib
+        self.git_init()
+        alvo = self.root / "docs" / "_process" / "tiers.md"
+        soma_do_kit = hashlib.sha256(
+            (alvo.read_text(encoding="utf-8") + "\nlinha do kit\n").encode("utf-8")
+        ).hexdigest()
+        (self.root / "docs" / ".kit-manifest").write_text(
+            "%s  docs/_process/tiers.md\n" % soma_do_kit, encoding="utf-8")
+        alvo.write_text(alvo.read_text(encoding="utf-8") + "\noutra coisa\n",
+                        encoding="utf-8")
+        self._add()
+        result = self.guard()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("docs/_process/tiers.md", result.stdout + result.stderr)
+
     def _add(self):
         import subprocess
         subprocess.run(["git", "add", "-A"], cwd=str(self.root), capture_output=True)

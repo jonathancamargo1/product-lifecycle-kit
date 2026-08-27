@@ -52,8 +52,12 @@ def main(argv=None):
     for rel in staged:
         motivo = kit.blocking_reason(
             root, rel, content_reader=lambda p: kit.head_content(root, p))
-        if motivo:
-            bloqueados.append((rel, motivo))
+        if not motivo:
+            continue
+        # O que o proprio kit instalou passa: e o caminho de install.sh --update.
+        if kit.matches_manifest(root, rel, kit.staged_content(root, rel)):
+            continue
+        bloqueados.append((rel, motivo))
     if not bloqueados:
         return 0
     sys.stderr.write("Arquivo protegido. Abra uma decisao (script decide) ou "

@@ -149,6 +149,11 @@ def main(argv=None):
     # outro: se o gate estava approved, criar por cima apagaria o registro da
     # aprovacao humana (principio 4).
     anterior = (state.get("gates") or {}).get(fase) or {}
+    # O gate em STATE.md e chaveado so pela fase (OPEN_QUESTIONS Q2), entao o
+    # bloqueio precisa olhar a area do artefato anterior: outra area comecando
+    # a mesma fase nao esta substituindo nada.
+    if kit.area_of(str(anterior.get("evidence") or "")) != args.area:
+        anterior = {}
     if anterior.get("evidence") and not args.supersede:
         kit.die("new-artifact: o gate %s ja tem artefato: %s (status %s).\n"
                 "Um artefato por gate. Para substituir, use --supersede, que "

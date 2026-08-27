@@ -20,8 +20,22 @@ def main():
     destino_path = Path(sys.argv[2])
     try:
         destino = json.loads(destino_path.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
-        destino = {}
+    except OSError as erro:
+        sys.stderr.write("merge-settings: nao consegui ler %s: %s\n"
+                         % (destino_path, erro))
+        return 1
+    except ValueError as erro:
+        # Sobrescrever aqui apagaria permissions, model e tudo mais que o
+        # projeto tenha. Melhor parar e deixar a pessoa consertar o JSON.
+        sys.stderr.write(
+            "merge-settings: %s existe mas nao e JSON valido (%s).\n"
+            "Nada foi alterado. Conserte o arquivo e rode install.sh de novo, "
+            "ou adicione os hooks do kit a mao.\n" % (destino_path, erro))
+        return 1
+    if not isinstance(destino, dict):
+        sys.stderr.write("merge-settings: %s nao contem um objeto JSON. "
+                         "Nada foi alterado.\n" % destino_path)
+        return 1
 
     alvo_hooks = destino.setdefault("hooks", {})
     for evento, entradas in origem.get("hooks", {}).items():
