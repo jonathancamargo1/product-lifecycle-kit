@@ -548,9 +548,9 @@ testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 
 ````text
 $ python3 -m unittest discover bin/tests
-................................................................................................................................................
+........................................................................................................................................................
 ----------------------------------------------------------------------
-Ran 144 tests in 20.363s
+Ran 152 tests in 22.240s
 
 OK
 EXIT: 0
@@ -942,15 +942,15 @@ session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-3217f45 humano aprova o gate 17-ship
-515207f sessao 04: 17-ship executei a fase 17-ship
-d1cb4ca humano aprova o gate 14-review
-cb7a26d sessao 03: 14-review executei a fase 14-review
-97aa05f humano aprova o gate 13-build-log
-8941347 sessao 02: 13-build-log executei a fase 13-build
-b4aef0d humano aprova o gate 01-contexto
-cbce31d sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-44f7bec instala o product-lifecycle-kit
+4bda016 humano aprova o gate 17-ship
+c3c4fd3 sessao 04: 17-ship executei a fase 17-ship
+22e4e18 humano aprova o gate 14-review
+f3375b7 sessao 03: 14-review executei a fase 14-review
+19ca8e2 humano aprova o gate 13-build-log
+c6d267b sessao 02: 13-build-log executei a fase 13-build
+6d72aae humano aprova o gate 01-contexto
+9e40d40 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+58115ce instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1119,7 +1119,7 @@ EXIT: 0
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main c59bae7] commit de codigo com a sessao aberta
+[main 11760f2] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1137,7 +1137,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-1686243 humano aprova o gate 01-contexto
+307540e humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1148,7 +1148,7 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main f9b070e] corrige o artefato aprovado sob a decisao D-0001
+[main 9e72655] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
@@ -1163,7 +1163,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main 3fed178] adiciona uma nota solta
+[main b74097e] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1173,20 +1173,20 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-3fed178 adiciona uma nota solta
-f9b070e corrige o artefato aprovado sob a decisao D-0001
-750304f sessao 06: 17-ship commit de codigo
-c59bae7 commit de codigo com a sessao aberta
-fdbbb45 sessao 05: 17-ship trabalho da sessao 05
-b0cbbab humano aprova o gate 17-ship
-42effa3 sessao 04: 17-ship executei a fase 17-ship
-54843d8 humano aprova o gate 14-review
-9332e9e sessao 03: 14-review executei a fase 14-review
-319659f humano aprova o gate 13-build-log
-982833b sessao 02: 13-build-log executei a fase 13-build
-1686243 humano aprova o gate 01-contexto
-61093ed sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-a2287c6 instala o product-lifecycle-kit
+b74097e adiciona uma nota solta
+9e72655 corrige o artefato aprovado sob a decisao D-0001
+f1b238a sessao 06: 17-ship commit de codigo
+11760f2 commit de codigo com a sessao aberta
+873f58a sessao 05: 17-ship trabalho da sessao 05
+3caed79 humano aprova o gate 17-ship
+395c349 sessao 04: 17-ship executei a fase 17-ship
+c2ec0b9 humano aprova o gate 14-review
+09c953e sessao 03: 14-review executei a fase 14-review
+f596cd6 humano aprova o gate 13-build-log
+4db8de4 sessao 02: 13-build-log executei a fase 13-build
+307540e humano aprova o gate 01-contexto
+d7ba32a sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+933869e instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1225,6 +1225,7 @@ $ cat /home/user/product-lifecycle-kit/VERSION   (o kit real)
 $ <copia>/install.sh /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b --update
 Atualizando o kit em /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b para a versao 1.2.0.
 Versao anterior: 1.1.0
+  AGENTS.md nao tinha edicao do projeto, foi atualizado
   adaptador claude-code nao estava instalado, pulando
 Adaptador codex.
 
@@ -1278,8 +1279,6 @@ EXIT: 0
 
 ----- 6. O kit real continua na versao de antes -----
 $ git -C /home/user/product-lifecycle-kit status --short VERSION CHANGELOG.md bin/_kitlib.py
- M CHANGELOG.md
- M VERSION
  M bin/_kitlib.py
 EXIT: 0
 
@@ -1329,8 +1328,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 5320 Aug 27 14:44 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 27 14:44 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 6584 Aug 27 15:00 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 27 15:00 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1403,9 +1402,8 @@ nao passa por review de papel distinto do executor, e nao deixa rastro
 de qual decisao de produto o originou. Daqui a tres meses ninguem sabe
 por que ele existe.
 
-O caminho recomendado:
-  bin/lifecycle/plan                 ve o que falta
-  bin/lifecycle/new-artifact 13-build <area> "<titulo>" --owner <nome> --inputs <path>
+O caminho recomendado, que diz qual e a proxima fase de verdade:
+  bin/lifecycle/plan
 
 Se mesmo assim este commit precisa entrar agora, pergunte ao humano e
 registre a resposta dele no proprio commit:
@@ -1434,9 +1432,8 @@ nao passa por review de papel distinto do executor, e nao deixa rastro
 de qual decisao de produto o originou. Daqui a tres meses ninguem sabe
 por que ele existe.
 
-O caminho recomendado:
-  bin/lifecycle/plan                 ve o que falta
-  bin/lifecycle/new-artifact 13-build <area> "<titulo>" --owner <nome> --inputs <path>
+O caminho recomendado, que diz qual e a proxima fase de verdade:
+  bin/lifecycle/plan
 
 Se mesmo assim este commit precisa entrar agora, pergunte ao humano e
 registre a resposta dele no proprio commit:
@@ -1450,7 +1447,7 @@ $ git commit -m corrige timeout do gateway
 
 Sem-fase: hotfix de producao, autorizado por Jonathan Camargo
 gate-check: nenhuma ocorrencia.
-[main 5a1d88e] corrige timeout do gateway
+[main 0d01630] corrige timeout do gateway
  1 file changed, 1 insertion(+)
 EXIT: 0
 
@@ -1470,7 +1467,7 @@ $ python3 bin/lifecycle/gate-check
 gate-check: 0 erro(s), 1 aviso(s).
 EXIT: 0
 $ git log --grep ^Sem-fase: --oneline
-5a1d88e corrige timeout do gateway
+0d01630 corrige timeout do gateway
 EXIT: 0
 ````
 
@@ -1512,7 +1509,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) 5b1f31e] primeiro commit
+[main (root-commit) 4eed542] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 docs/nota.md
 EXIT: 0

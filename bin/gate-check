@@ -359,6 +359,8 @@ def check_code_phase(root, report):
     vista: o contador aparece em toda sessao, porque session-open roda o
     gate-check.
     """
+    if not hasattr(kit, "commits_sem_fase"):
+        return
     quantos = kit.commits_sem_fase(root)
     if not quantos:
         return

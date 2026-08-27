@@ -28,6 +28,33 @@ def encadeia(root, argv):
             raise SystemExit(resultado.returncode)
 
 
+SCISSORS = "# ------------------------ >8 ------------------------"
+
+
+def corpo_da_mensagem(mensagem):
+    """So o que o git vai guardar: sem comentario e sem o diff do commit -v."""
+    linhas = []
+    for linha in mensagem.splitlines():
+        if linha.startswith(SCISSORS):
+            break
+        if linha.lstrip().startswith("#"):
+            continue
+        linhas.append(linha)
+    return linhas
+
+
+def _trailers(mensagem, marca):
+    return [l for l in corpo_da_mensagem(mensagem) if l.strip().startswith(marca)]
+
+
+def autorizado(mensagem, marca):
+    return any(l.split(":", 1)[1].strip() for l in _trailers(mensagem, marca))
+
+
+def trailer_vazio(mensagem, marca):
+    return bool(_trailers(mensagem, marca))
+
+
 def carrega_kit(root):
     for dirname in ("bin/lifecycle", "bin"):
         lib = root / dirname / "_kitlib.py"
@@ -48,31 +75,44 @@ def fase_para_codigo(root, mensagem):
     kit = carrega_kit(root)
     if kit is None:
         return None
+    # Um kit instalado antes desta regra nao tem estas funcoes. Degradar e
+    # obrigatorio: install.sh reinstala os hooks mas preserva scripts que ja
+    # existem, entao hook novo com lib antiga e um estado real, e nao pode
+    # matar todo commit do projeto.
+    for nome in ("is_code_path", "code_phase_open", "read_state", "CODE_TRAILER"):
+        if not hasattr(kit, nome):
+            return None
     try:
         state = kit.read_state(root)
     except (ValueError, TypeError):
         return None
 
+    # Merge nao esta autorando codigo novo, esta juntando o que ja existe, e o
+    # diff em staging carrega tudo que vem do outro branch.
+    if (root / ".git" / "MERGE_HEAD").exists():
+        return None
+
+    # -z porque --name-only poe path nao ASCII entre aspas, e "docs/decisao.md"
+    # com aspas deixa de casar com o prefixo docs/.
     resultado = subprocess.run(
-        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMRT"],
+        ["git", "diff", "--cached", "--name-only", "-z",
+         "--diff-filter=ACMRTD"],
         cwd=str(root), capture_output=True, text=True)
     if resultado.returncode != 0:
         return None
-    codigo = [l.strip() for l in resultado.stdout.splitlines()
-              if l.strip() and kit.is_code_path(l.strip())]
+    codigo = [p for p in resultado.stdout.split("\0")
+              if p and kit.is_code_path(p)]
     if not codigo:
         return None
     if kit.code_phase_open(state):
         return None
 
-    for linha in mensagem.splitlines():
-        if linha.strip().startswith(kit.CODE_TRAILER):
-            motivo = linha.split(":", 1)[1].strip()
-            if motivo:
-                return None
-            return ("commit-msg: %s esta vazio. A autorizacao precisa de motivo:\n"
-                    "  %s <por que este codigo entra sem fase, e quem autorizou>\n"
-                    % (kit.CODE_TRAILER, kit.CODE_TRAILER))
+    if autorizado(mensagem, kit.CODE_TRAILER):
+        return None
+    if trailer_vazio(mensagem, kit.CODE_TRAILER):
+        return ("commit-msg: %s esta vazio. A autorizacao precisa de motivo:\n"
+                "  %s <por que este codigo entra sem fase, e quem autorizou>\n"
+                % (kit.CODE_TRAILER, kit.CODE_TRAILER))
 
     fase = state.get("current_phase") or "nenhuma"
     exemplo = codigo[0] if len(codigo) == 1 else "%s e mais %d" % (codigo[0],
@@ -88,10 +128,8 @@ def fase_para_codigo(root, mensagem):
         "deixa rastro\nde qual decisao de produto o originou. Daqui a tres "
         "meses ninguem sabe\npor que ele existe.\n"
         "\n"
-        "O caminho recomendado:\n"
-        "  bin/lifecycle/plan                 ve o que falta\n"
-        "  bin/lifecycle/new-artifact 13-build <area> \"<titulo>\" --owner <nome> "
-        "--inputs <path>\n"
+        "O caminho recomendado, que diz qual e a proxima fase de verdade:\n"
+        "  bin/lifecycle/plan\n"
         "\n"
         "Se mesmo assim este commit precisa entrar agora, pergunte ao humano e\n"
         "registre a resposta dele no proprio commit:\n"

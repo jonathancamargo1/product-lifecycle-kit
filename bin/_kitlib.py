@@ -588,6 +588,23 @@ def refresh_area_panels(root, state):
             fim += 1
         novas = [PANEL_HEADER, "|---|---|---|---|---|---|"]
         presentes = dict(por_area.get(area, []))
+        # O gate e chaveado so pela fase (Q2), entao outra area pode ter
+        # sobrescrito o registro desta. O artefato em disco nao sumiu: o painel
+        # da area olha a pasta dela antes de declarar uma fase pendente.
+        for pasta in sorted((base / area).iterdir()):
+            if not pasta.is_dir() or pasta.name in presentes:
+                continue
+            artefatos = [a for a in sorted(pasta.glob("*.md"))
+                         if a.name != "README.md"]
+            if not artefatos:
+                continue
+            fields, _ = read_frontmatter(artefatos[0])
+            presentes[pasta.name] = {
+                "status": (fields or {}).get("status") or "",
+                "evidence": artefatos[0].relative_to(root).as_posix(),
+                "by": (fields or {}).get("approved_by"),
+                "date": (fields or {}).get("approved_at"),
+            }
         # As fases que faltam entram como pendente. Sem elas o painel mente por
         # omissao: um projeto pela metade parece completo, porque so o que
         # existe aparece na tabela.

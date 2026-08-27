@@ -178,6 +178,21 @@ class TestNewArtifact(KitTestCase):
         self.assertNotIn("05-prd", painel)
         self.assertNotIn("20-retro", painel)
 
+    def test_painel_nao_diz_pendente_para_artefato_que_existe_na_area(self):
+        """Gates sao chaveados so pela fase (Q2).
+
+        Se a area B sobrescreveu o gate 01, o painel da area A nao pode dizer
+        que a fase 01 dela esta pendente: o artefato esta la, em disco.
+        """
+        self.novo("01-contexto", "areaA", "Contexto A", "--owner", "Jonathan Camargo")
+        self.novo("01-contexto", "areaB", "Contexto B", "--owner", "Ana Souza")
+        painel = (self.root / "docs" / "areas" / "areaA" / "README.md").read_text(
+            encoding="utf-8")
+        linha = [l for l in painel.splitlines() if l.startswith("| 01-contexto")][0]
+        self.assertIn("contexto-a.md", linha,
+                      "o painel da areaA perdeu o artefato dela: %s" % linha)
+        self.assertNotIn("pendente", linha)
+
     def test_o_resultado_passa_no_gate_check(self):
         self.novo("01-contexto", "onboarding", "Contexto", "--owner", "Jonathan Camargo")
         result = self.run_script("gate-check")

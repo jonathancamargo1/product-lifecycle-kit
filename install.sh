@@ -139,6 +139,15 @@ if [ "$UPDATE" -eq 0 ]; then
     copia "$KIT_DIR/docs/AGENTS.md" "AGENTS.md"
     mkdir -p "$ALVO/docs/_handoffs" "$ALVO/docs/areas"
 else
+    # AGENTS.md editado pelo projeto nunca e tocado. Mas o que veio do kit e
+    # nunca foi mexido precisa acompanhar, senao o projeto atualiza os hooks e
+    # fica com instrucoes que nao falam das regras novas.
+    if [ -f "$ALVO/AGENTS.md" ] && ! customizado "AGENTS.md"; then
+        cp "$KIT_DIR/docs/AGENTS.md" "$ALVO/AGENTS.md"
+        info "  AGENTS.md nao tinha edicao do projeto, foi atualizado"
+    elif [ -f "$ALVO/AGENTS.md" ]; then
+        REVISAR="$REVISAR AGENTS.md (editado pelo projeto, regras novas nao entraram)\n"
+    fi
     for rel in docs/STATE.md AGENTS.md; do
         [ -f "$ALVO/$rel" ] && printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
     done
@@ -153,7 +162,14 @@ for script in gate-check new-artifact session-open session-close guard-write pla
         cp "$KIT_DIR/bin/$script" "$ALVO/$rel"
         printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
     else
-        copia "$KIT_DIR/bin/$script" "$rel"
+        # Script do kit que ja existe e nao foi customizado e reenviado: hook
+        # novo com _kitlib antigo quebra todo commit do projeto.
+        if [ -f "$ALVO/$rel" ] && ! customizado "$rel"; then
+            cp "$KIT_DIR/bin/$script" "$ALVO/$rel"
+            printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
+        else
+            copia "$KIT_DIR/bin/$script" "$rel"
+        fi
     fi
     [ "$script" = "_kitlib.py" ] || chmod +x "$ALVO/$rel" 2>/dev/null || true
 done

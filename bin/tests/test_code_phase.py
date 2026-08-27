@@ -103,6 +103,95 @@ class TestFaseParaCodigo(KitTestCase):
         self.assertEqual(self.commit_msg(MSG_COMUM).returncode, 0)
 
 
+class TestBordas(KitTestCase):
+    """Casos que a regra de fase para codigo nao pode quebrar."""
+
+    def commit_msg(self, mensagem):
+        (self.root / "MSG").write_text(mensagem, encoding="utf-8")
+        return subprocess.run(
+            [sys.executable, str(KIT_ROOT / "git-hooks" / "commit-msg"), "MSG"],
+            cwd=str(self.root), capture_output=True, text=True)
+
+    def _codigo(self, nome="src/app.py"):
+        alvo = self.root / nome
+        alvo.parent.mkdir(parents=True, exist_ok=True)
+        alvo.write_text("x = 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", nome], cwd=str(self.root), capture_output=True)
+
+    def test_kitlib_antigo_nao_derruba_o_hook(self):
+        """Hook novo com _kitlib sem as funcoes novas degrada, nao explode."""
+        self.git_init()
+        lib = self.root / "bin" / "lifecycle" / "_kitlib.py"
+        texto = lib.read_text(encoding="utf-8")
+        for nome in ("def is_code_path", "def code_phase_open", "def commits_sem_fase"):
+            i = texto.index(nome)
+            fim = texto.index("\n\n\n", i)
+            texto = texto[:i] + texto[fim + 3:]
+        lib.write_text(texto, encoding="utf-8")
+        self._codigo()
+        result = self.commit_msg("qualquer coisa\n")
+        self.assertEqual(result.returncode, 0,
+                         "hook explodiu com lib antiga:\n" + result.stderr)
+
+    def test_trailer_dentro_do_diff_do_commit_v_nao_autoriza(self):
+        """git commit -v anexa o diff. Um doc que cita o trailer nao autoriza."""
+        self.git_init()
+        self._codigo()
+        mensagem = (
+            "adiciona feature\n"
+            "# Please enter the commit message for your changes.\n"
+            "# ------------------------ >8 ------------------------\n"
+            "diff --git a/README.md b/README.md\n"
+            "+Sem-fase: <por que entra sem fase, e quem autorizou>\n")
+        self.assertEqual(self.commit_msg(mensagem).returncode, 1,
+                         "o diff anexado autorizou o commit")
+
+    def test_linha_de_comentario_nao_autoriza(self):
+        self.git_init()
+        self._codigo()
+        self.assertEqual(
+            self.commit_msg("x\n\n# Sem-fase: isto e um comentario\n").returncode, 1)
+
+    def test_merge_nao_e_barrado(self):
+        """Merge nao esta autorando codigo novo, esta juntando o que ja existe."""
+        self.git_init()
+        self._codigo()
+        (self.root / ".git" / "MERGE_HEAD").write_text("0" * 40 + "\n",
+                                                       encoding="utf-8")
+        self.assertEqual(self.commit_msg("Merge branch 'feature'\n").returncode, 0)
+
+    def test_path_com_acento_nao_vira_codigo(self):
+        self.git_init()
+        alvo = self.root / "docs" / "decisao-nao-obvia.md"
+        alvo.write_text("nota\n", encoding="utf-8")
+        acentuado = self.root / "docs" / "decis\u00e3o.md"
+        acentuado.write_text("nota\n", encoding="utf-8")
+        subprocess.run(["git", "add", "docs"], cwd=str(self.root), capture_output=True)
+        result = self.commit_msg("documenta a decisao\n")
+        self.assertEqual(result.returncode, 0,
+                         "path com acento foi tratado como codigo:\n" + result.stderr)
+
+    def test_delecao_de_codigo_tambem_exige_fase(self):
+        self.git_init()
+        (self.root / "src").mkdir(exist_ok=True)
+        (self.root / "src" / "velho.py").write_text("x = 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=str(self.root), capture_output=True)
+        subprocess.run(["git", "commit", "-q", "--no-verify", "-m", "base"],
+                       cwd=str(self.root), capture_output=True)
+        subprocess.run(["git", "rm", "-q", "src/velho.py"], cwd=str(self.root),
+                       capture_output=True)
+        self.assertEqual(self.commit_msg("remove codigo morto\n").returncode, 1,
+                         "apagar codigo do produto passou sem fase")
+
+    def test_a_recusa_manda_rodar_plan_e_nao_um_comando_que_falha(self):
+        self.git_init()
+        self._codigo()
+        saida = self.commit_msg("x\n").stderr
+        self.assertIn("plan", saida)
+        self.assertNotIn("new-artifact 13-build", saida,
+                         "nao mande rodar um comando que o SQ-01 vai recusar")
+
+
 class TestPh01(KitTestCase):
     def test_ph01_avisa_e_nao_derruba_o_exit_code(self):
         self.git_init()
