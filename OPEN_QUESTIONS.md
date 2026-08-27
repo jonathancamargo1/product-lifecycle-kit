@@ -360,3 +360,28 @@ feliz o resultado e identico ao da secao 9. No caminho de erro a sessao
 continua aberta e o handoff intacto, entao basta corrigir e rodar de novo.
 
 Efeito: `bin/session-close`, `bin/tests/test_session.py`.
+
+## Q27. Codigo ST-05, para tier nao declarado
+
+O kit instala com `tier: null`, e `required_phases(None)` devolve `None`, o que
+faz SQ-01 nao ter o que verificar. O efeito, encontrado depois do primeiro
+merge: um projeto onde ninguem preencheu o tier rodava com o sequenciamento
+desligado, e o `gate-check` dizia "nenhuma ocorrencia". Dava para criar o
+artefato da fase 13 sem nunca ter passado pela 01.
+
+Interpretacao adotada: criado o codigo `ST-05`, severidade erro, que dispara
+quando o projeto ja tem gate registrado ou `current_phase` definida e o `tier`
+nao e 1, 2 nem 3. Projeto recem instalado, ainda sem trabalho nenhum, nao e
+cobrado, senao o `gate-check` que o `install.sh` roda no fim ja acusaria.
+
+Alem disso, `new-artifact` recusa criar sem tier declarado, e `install.sh`
+termina imprimindo os proximos passos, com o preenchimento de `project` e
+`tier` em primeiro lugar. E o terceiro codigo fora da tabela da secao 8, junto
+com IN-03 (Q6) e ST-04 (Q21).
+
+A alternativa seria o `install.sh` perguntar o tier na instalacao. Foi
+descartada: `install.sh` precisa rodar sem terminal interativo, dentro de uma
+sessao de agente.
+
+Efeito: `bin/gate-check`, `bin/new-artifact`, `install.sh`,
+`bin/tests/test_gate_check.py`, `bin/tests/test_new_artifact.py`.

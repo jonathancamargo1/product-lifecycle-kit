@@ -232,6 +232,43 @@ class TestSequencia(GateCheckBase):
         self.write_state(state)
         self.assertNoCode(self.check(), "SQ-01")
 
+    def test_sq01_olha_gates_em_andamento_nao_so_current_phase(self):
+        """No modo reverso o STATE.md e preenchido a mao, sem current_phase.
+
+        Um gate in_progress ja e uma fase em andamento: se SQ-01 so olhasse
+        current_phase, backfill feito a mao passaria sem sequenciamento.
+        """
+        ctx = self.write_artifact("nucleo", "01-contexto", "contexto",
+                                  status="proposed")
+        build = self.write_artifact("nucleo", "13-build-log", "build",
+                                    inputs=[ctx])
+        estado = dict(DEFAULT_STATE)
+        estado["current_phase"] = None
+        estado["gates"] = {
+            "01-contexto": {"status": "proposed", "evidence": ctx,
+                            "by": None, "date": None},
+            "13-build-log": {"status": "in_progress", "evidence": build,
+                             "by": None, "date": None}}
+        self.write_state(estado)
+        result = self.check()
+        self.assertCode(result, "SQ-01")
+        self.assertEqual(result.returncode, 1)
+
+    def test_sq01_nao_reclama_de_gate_ja_aprovado(self):
+        ctx = self.write_artifact("nucleo", "01-contexto", "contexto",
+                                  status="approved", approved_by="Jonathan Camargo",
+                                  approved_at="2026-08-26")
+        build = self.write_artifact("nucleo", "13-build-log", "build",
+                                    inputs=[ctx])
+        estado = dict(DEFAULT_STATE)
+        estado["gates"] = {
+            "01-contexto": {"status": "approved", "evidence": ctx,
+                            "by": "Jonathan Camargo", "date": "2026-08-26"},
+            "13-build-log": {"status": "in_progress", "evidence": build,
+                             "by": None, "date": None}}
+        self.write_state(estado)
+        self.assertNoCode(self.check(), "SQ-01")
+
     def test_phase_recusa_iniciar_sem_gate_anterior(self):
         path = self.write_artifact("nucleo", "01-contexto", "contexto",
                                    status="proposed")
@@ -259,6 +296,55 @@ class TestSequencia(GateCheckBase):
         result = self.check("--phase", "1")
         self.assertEqual(result.returncode, 1)
         self.assertIn("ambiguo", (result.stdout + result.stderr).lower())
+
+
+class TestTierDeclarado(GateCheckBase):
+    """Sem tier, SQ-01 nao tem o que verificar e o sequenciamento some.
+
+    Esse era o furo: o kit instala com tier null, entao um projeto onde
+    ninguem preencheu o tier rodava com a trava desligada, e o gate-check
+    dizia que estava tudo certo.
+    """
+
+    def _com_gate(self, tier):
+        path = self.write_artifact("nucleo", "13-build-log", "build",
+                                   inputs=["docs/_context/CONTEXT.md"])
+        estado = dict(DEFAULT_STATE)
+        estado["tier"] = tier
+        estado["gates"] = {"13-build-log": {"status": "in_progress",
+                                            "evidence": path, "by": None,
+                                            "date": None}}
+        self.write_state(estado)
+
+    def test_st05_falha_com_tier_null_e_gate_registrado(self):
+        self._com_gate(None)
+        result = self.check()
+        self.assertCode(result, "ST-05")
+        self.assertEqual(result.returncode, 1)
+
+    def test_st05_falha_com_tier_fora_do_enum(self):
+        self._com_gate(9)
+        self.assertCode(self.check(), "ST-05")
+
+    def test_st05_passa_com_tier_declarado(self):
+        self._com_gate(1)
+        self.assertNoCode(self.check(), "ST-05")
+
+    def test_st05_nao_incomoda_projeto_recem_instalado(self):
+        """install.sh termina com gate-check. Projeto vazio nao pode acusar."""
+        estado = dict(DEFAULT_STATE)
+        estado["tier"] = None
+        self.write_state(estado)
+        result = self.check()
+        self.assertNoCode(result, "ST-05")
+        self.assertEqual(result.returncode, 0)
+
+    def test_st05_falha_com_current_phase_e_sem_tier(self):
+        estado = dict(DEFAULT_STATE)
+        estado["tier"] = None
+        estado["current_phase"] = "01-contexto"
+        self.write_state(estado)
+        self.assertCode(self.check(), "ST-05")
 
 
 class TestDecisoes(GateCheckBase):

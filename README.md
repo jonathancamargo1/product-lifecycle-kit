@@ -61,6 +61,41 @@ project: nome-do-projeto
 tier: 2
 ```
 
+## Instalar a partir de outro repositorio, com um agente
+
+O caso mais comum: voce esta numa sessao aberta num projeto novo e quer o kit
+ali. O agente dessa sessao nao sabe onde o kit mora, e este README, que
+explicaria, esta dentro do kit que ele ainda nao tem. Entao seja explicito.
+Cole isto na sessao do projeto, trocando a URL pela do seu kit:
+
+```
+Adicione o repositorio <owner>/product-lifecycle-kit ao escopo desta sessao,
+clone ele para /tmp/plk, e rode:
+
+    /tmp/plk/install.sh . --adapters all
+
+Depois preencha project e tier em docs/STATE.md, commite a instalacao, e
+abra a primeira sessao com bin/lifecycle/session-open.
+```
+
+Tres coisas que costumam travar:
+
+- **O kit e um repositorio privado.** Uma sessao nova so enxerga o repositorio
+  em que foi aberta. Ela precisa anexar o do kit ao escopo antes de clonar, ou
+  o clone falha com "not found" mesmo que voce tenha acesso.
+- **`install.sh` nao adivinha o alvo.** O primeiro argumento e o repositorio de
+  destino, e ele precisa ja ser um repositorio git. Rode de dentro do projeto,
+  com `.` como alvo.
+- **`project` e `tier` nao se preenchem sozinhos.** O kit instala com os dois
+  em `null`, e o `install.sh` termina dizendo exatamente isso. Enquanto o tier
+  for `null`, `new-artifact` recusa criar artefato e `gate-check` acusa ST-05,
+  de proposito: sem tier o kit nao sabe quais fases exigir, e um gate que nao
+  exige nada e pior do que gate nenhum, porque parece que existe.
+
+O que a instalacao faz com um projeto que ja tem codigo: acrescenta
+`AGENTS.md`, `CLAUDE.md`, `.claude/`, `bin/lifecycle/`, `docs/` e os dois git
+hooks. Nao toca em nenhum arquivo que ja existia, e lista no fim o que pulou.
+
 ## Atualizar
 
 ```sh
@@ -141,14 +176,16 @@ comecar, e `--json` para consumo por script.
 | ST-02 | Gate em `STATE.md` diverge do frontmatter do artefato | erro |
 | ST-03 | Path de `evidence` nao existe | erro |
 | ST-04 | `last_session` aponta para handoff que nao existe | erro |
+| ST-05 | Projeto com trabalho em andamento e `tier` nao declarado | erro |
 | SQ-01 | Fase em andamento com gate obrigatorio anterior nao aprovado | erro |
 | DC-01 | `PENDING` em `decisions.log` sem `blocked_by` correspondente | erro |
 | VC-01 | Termo proibido pelo glossario aparece no codigo ou nos documentos | erro |
 | DR-01 | Pasta vazia sob `docs/areas/` | aviso |
 | KV-01 | `docs/KIT_VERSION` ausente ou incompativel com os scripts | aviso |
 
-Avisos nao alteram o exit code. `IN-03` e `ST-04` nao constam da tabela da
-especificacao original; estao registrados em `OPEN_QUESTIONS.md`, Q6 e Q21.
+Avisos nao alteram o exit code. `IN-03`, `ST-04` e `ST-05` nao constam da
+tabela da especificacao original; estao registrados em `OPEN_QUESTIONS.md`,
+Q6, Q21 e Q27.
 
 ## Adaptador versus enforcement comum
 
@@ -452,9 +489,9 @@ testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 
 ```text
 $ python3 -m unittest discover bin/tests
-.................................................................................................................
+.........................................................................................................................
 ----------------------------------------------------------------------
-Ran 113 tests in 9.778s
+Ran 121 tests in 15.128s
 
 OK
 EXIT: 0
@@ -489,6 +526,25 @@ Rodando gate-check no alvo.
 gate-check: nenhuma ocorrencia.
 
 Instalacao concluida. gate-check saiu com 0.
+
+PROXIMOS PASSOS, nesta ordem:
+
+1. Abra docs/STATE.md e preencha dois campos:
+     project: <nome-do-projeto>
+     tier:    1, 2 ou 3     (ver docs/_process/tiers.md)
+
+   O tier decide quais fases sao obrigatorias. Enquanto ele for
+   null, o kit nao sabe o que exigir: new-artifact recusa criar
+   e gate-check acusa ST-05. Na duvida entre dois tiers, escolha
+   o maior.
+
+2. Commite a instalacao:
+     git add -A && git commit -m "instala o product-lifecycle-kit"
+
+3. Abra a primeira sessao:
+     bin/lifecycle/session-open --agent <codex|claude-code|human>
+
+Todo o resto do protocolo esta em AGENTS.md, na raiz.
 EXIT: 0
 
 ----- 2. Git hooks instalados -----
@@ -825,15 +881,15 @@ session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-74877f7 humano aprova o gate 17-ship
-a0a3cb7 sessao 04: 17-ship executei a fase 17-ship
-8c592d7 humano aprova o gate 14-review
-90c98d5 sessao 03: 14-review executei a fase 14-review
-17cfb0f humano aprova o gate 13-build-log
-9ce7b5b sessao 02: 13-build-log executei a fase 13-build
-664b973 humano aprova o gate 01-contexto
-ceb72eb sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-0cddbe0 instala o product-lifecycle-kit
+0815260 humano aprova o gate 17-ship
+8881b4f sessao 04: 17-ship executei a fase 17-ship
+1f7be16 humano aprova o gate 14-review
+dc8d8c2 sessao 03: 14-review executei a fase 14-review
+a68c918 humano aprova o gate 13-build-log
+cc84e4d sessao 02: 13-build-log executei a fase 13-build
+90a77c8 humano aprova o gate 01-contexto
+ba44c13 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+dabaa5d instala o product-lifecycle-kit
 EXIT: 0
 ```
 
@@ -868,6 +924,25 @@ Rodando gate-check no alvo.
 gate-check: nenhuma ocorrencia.
 
 Instalacao concluida. gate-check saiu com 0.
+
+PROXIMOS PASSOS, nesta ordem:
+
+1. Abra docs/STATE.md e preencha dois campos:
+     project: <nome-do-projeto>
+     tier:    1, 2 ou 3     (ver docs/_process/tiers.md)
+
+   O tier decide quais fases sao obrigatorias. Enquanto ele for
+   null, o kit nao sabe o que exigir: new-artifact recusa criar
+   e gate-check acusa ST-05. Na duvida entre dois tiers, escolha
+   o maior.
+
+2. Commite a instalacao:
+     git add -A && git commit -m "instala o product-lifecycle-kit"
+
+3. Abra a primeira sessao:
+     bin/lifecycle/session-open --agent <codex|claude-code|human>
+
+Todo o resto do protocolo esta em AGENTS.md, na raiz.
 EXIT: 0
 
 ----- 2. Nenhum artefato de runtime de agente foi instalado -----
@@ -984,7 +1059,7 @@ EXIT: 0
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main 38e53eb] commit de codigo com a sessao aberta
+[main 09427fa] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1002,7 +1077,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-90f9f1c humano aprova o gate 01-contexto
+a8f1883 humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1013,7 +1088,7 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main 34c894f] corrige o artefato aprovado sob a decisao D-0001
+[main ab7aac3] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
@@ -1028,7 +1103,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main 4694c15] adiciona uma nota solta
+[main cb9351e] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1038,20 +1113,20 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-4694c15 adiciona uma nota solta
-34c894f corrige o artefato aprovado sob a decisao D-0001
-37ebb6a sessao 06: 17-ship commit de codigo
-38e53eb commit de codigo com a sessao aberta
-1c5fa32 sessao 05: 17-ship trabalho da sessao 05
-c8e14aa humano aprova o gate 17-ship
-6e73f19 sessao 04: 17-ship executei a fase 17-ship
-0733a6e humano aprova o gate 14-review
-0b78b70 sessao 03: 14-review executei a fase 14-review
-68841fe humano aprova o gate 13-build-log
-541337b sessao 02: 13-build-log executei a fase 13-build
-90f9f1c humano aprova o gate 01-contexto
-c2187bb sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-9e534c4 instala o product-lifecycle-kit
+cb9351e adiciona uma nota solta
+ab7aac3 corrige o artefato aprovado sob a decisao D-0001
+d59651e sessao 06: 17-ship commit de codigo
+09427fa commit de codigo com a sessao aberta
+f16f397 sessao 05: 17-ship trabalho da sessao 05
+1277e18 humano aprova o gate 17-ship
+e9dd6e6 sessao 04: 17-ship executei a fase 17-ship
+553bde1 humano aprova o gate 14-review
+c33ce13 sessao 03: 14-review executei a fase 14-review
+eafb563 humano aprova o gate 13-build-log
+aca1155 sessao 02: 13-build-log executei a fase 13-build
+a8f1883 humano aprova o gate 01-contexto
+fdba1b6 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+58e644f instala o product-lifecycle-kit
 EXIT: 0
 ```
 
@@ -1129,7 +1204,6 @@ EXIT: 0
 
 ----- 6. O kit real continua na versao de antes -----
 $ git -C /home/user/product-lifecycle-kit status --short VERSION CHANGELOG.md bin/_kitlib.py
- M bin/_kitlib.py
 EXIT: 0
 
 ----- 7. gate-check continua limpo depois do update -----
@@ -1142,7 +1216,9 @@ EXIT: 0
 
 Criterio de aceite: `install.sh --adapters none` num repositorio vazio termina
 com `gate-check` exit 0 e os dois git hooks instalados. E o caso que prova o
-principio 12, o de que o nucleo nao depende de agente nenhum.
+principio 12, o de que o nucleo nao depende de agente nenhum. Repare tambem nos
+proximos passos impressos no fim: sem `tier` declarado o kit nao sabe o que
+exigir, e diz isso.
 
 ```text
 $ /home/user/product-lifecycle-kit/install.sh . --adapters none
@@ -1154,12 +1230,31 @@ Rodando gate-check no alvo.
 gate-check: nenhuma ocorrencia.
 
 Instalacao concluida. gate-check saiu com 0.
+
+PROXIMOS PASSOS, nesta ordem:
+
+1. Abra docs/STATE.md e preencha dois campos:
+     project: <nome-do-projeto>
+     tier:    1, 2 ou 3     (ver docs/_process/tiers.md)
+
+   O tier decide quais fases sao obrigatorias. Enquanto ele for
+   null, o kit nao sabe o que exigir: new-artifact recusa criar
+   e gate-check acusa ST-05. Na duvida entre dois tiers, escolha
+   o maior.
+
+2. Commite a instalacao:
+     git add -A && git commit -m "instala o product-lifecycle-kit"
+
+3. Abra a primeira sessao:
+     bin/lifecycle/session-open --agent <codex|claude-code|human>
+
+Todo o resto do protocolo esta em AGENTS.md, na raiz.
 EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 2341 Aug 27 03:20 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 27 03:20 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 2341 Aug 27 12:26 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 27 12:26 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1199,6 +1294,7 @@ EXIT: 0
 Rodando gate-check no alvo.
 gate-check: nenhuma ocorrencia.
 Instalacao concluida. gate-check saiu com 0.
+   e gate-check acusa ST-05. Na duvida entre dois tiers, escolha
 
 ----- 3. O hook do projeto foi preservado, nao sobrescrito -----
 $ cat .git/hooks/pre-commit.local
@@ -1218,7 +1314,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) 110120d] primeiro commit
+[main (root-commit) d8dcc94] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 a.txt
 EXIT: 0
@@ -1256,7 +1352,7 @@ nenhuma
 
 ## Antes de instalar num projeto real
 
-1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 26, e cada um registra uma
+1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 27, e cada um registra uma
    decisao tomada por interpretacao conservadora, nao por certeza.
 2. Rode a prova do modo B voce mesmo, do zero, sem olhar esta secao. E o modo
    sem rede de seguranca de runtime: se funciona ali, funciona em qualquer

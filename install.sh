@@ -268,4 +268,29 @@ if [ $CODIGO -eq 0 ]; then
 else
     info "Instalacao concluida, mas gate-check saiu com $CODIGO. Veja acima."
 fi
+
+if [ "$UPDATE" -eq 0 ]; then
+    TIER_ATUAL="$(sed -n 's/^tier:[[:space:]]*\([^ #]*\).*/\1/p' "$ALVO/docs/STATE.md" | head -1)"
+    if [ "$TIER_ATUAL" = "null" ] || [ -z "$TIER_ATUAL" ]; then
+        info ""
+        info "PROXIMOS PASSOS, nesta ordem:"
+        info ""
+        info "1. Abra docs/STATE.md e preencha dois campos:"
+        info "     project: <nome-do-projeto>"
+        info "     tier:    1, 2 ou 3     (ver docs/_process/tiers.md)"
+        info ""
+        info "   O tier decide quais fases sao obrigatorias. Enquanto ele for"
+        info "   null, o kit nao sabe o que exigir: new-artifact recusa criar"
+        info "   e gate-check acusa ST-05. Na duvida entre dois tiers, escolha"
+        info "   o maior."
+        info ""
+        info "2. Commite a instalacao:"
+        info "     git add -A && git commit -m \"instala o product-lifecycle-kit\""
+        info ""
+        info "3. Abra a primeira sessao:"
+        info "     bin/lifecycle/session-open --agent <codex|claude-code|human>"
+        info ""
+        info "Todo o resto do protocolo esta em AGENTS.md, na raiz."
+    fi
+fi
 exit $CODIGO

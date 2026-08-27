@@ -129,6 +129,16 @@ def check_state(root, report):
         report.erro("ST-01", "docs/STATE.md", 1,
                     "campo ausente em STATE.md: %s" % ", ".join(faltando))
         return None
+    # Sem tier declarado, required_phases devolve None e SQ-01 nunca roda: o
+    # sequenciamento fica desligado em silencio. Um projeto recem instalado,
+    # ainda sem gate nenhum, nao e cobrado; a partir do primeiro artefato, sim.
+    tem_trabalho = bool(state.get("gates")) or bool(state.get("current_phase"))
+    if tem_trabalho and kit.required_phases(state.get("tier")) is None:
+        report.erro("ST-05", "docs/STATE.md", state_line(root, "tier"),
+                    "tier %r nao e 1, 2 nem 3. Sem tier declarado o "
+                    "sequenciamento de fases (SQ-01) fica desligado."
+                    % state.get("tier"))
+
     ultima = state.get("last_session")
     if ultima and not (Path(root) / str(ultima)).exists():
         report.erro("ST-04", "docs/STATE.md", state_line(root, "last_session"),
@@ -191,26 +201,44 @@ def check_sequence(root, report, state, fase_alvo=None):
     obrigatorias = kit.required_phases(state.get("tier"))
     if obrigatorias is None:
         return
-    fase = fase_alvo or state.get("current_phase")
-    if not fase:
-        return
-    try:
-        fase = kit.resolve_phase(str(fase))
-    except ValueError as erro:
-        report.erro("SQ-01", "docs/STATE.md", state_line(root, "current_phase"),
-                    str(erro))
-        return
-    numero = kit.phase_number(fase)
     gates = state.get("gates") or {}
-    for anterior in obrigatorias:
-        if kit.phase_number(anterior) >= numero:
+
+    # Toda fase em andamento e verificada, nao so a current_phase. Um gate
+    # in_progress ou proposed ja e uma fase aberta, e no modo reverso o
+    # STATE.md e preenchido a mao, muitas vezes sem current_phase nenhuma.
+    em_andamento = []
+    if fase_alvo:
+        em_andamento.append(str(fase_alvo))
+    elif state.get("current_phase"):
+        em_andamento.append(str(state["current_phase"]))
+    for slug, gate in (gates or {}).items():
+        if (gate or {}).get("status") in ("in_progress", "proposed"):
+            em_andamento.append(slug)
+    if not em_andamento:
+        return
+
+    vistas = []
+    for bruta in em_andamento:
+        try:
+            fase = kit.resolve_phase(str(bruta))
+        except ValueError as erro:
+            report.erro("SQ-01", "docs/STATE.md",
+                        state_line(root, "current_phase"), str(erro))
             continue
-        gate = gates.get(anterior) or {}
-        if gate.get("status") != "approved":
-            atual = gate.get("status") or "nao registrado"
-            report.erro("SQ-01", "docs/STATE.md", state_line(root, "current_phase"),
-                        "fase %s exige a fase obrigatoria %s aprovada, mas ela esta %s"
-                        % (fase, anterior, atual))
+        if fase in vistas:
+            continue
+        vistas.append(fase)
+        numero = kit.phase_number(fase)
+        for anterior in obrigatorias:
+            if kit.phase_number(anterior) >= numero:
+                continue
+            gate = gates.get(anterior) or {}
+            if gate.get("status") != "approved":
+                atual = gate.get("status") or "nao registrado"
+                report.erro("SQ-01", "docs/STATE.md",
+                            state_line(root, "current_phase"),
+                            "fase %s exige a fase obrigatoria %s aprovada, mas "
+                            "ela esta %s" % (fase, anterior, atual))
 
 
 def check_decisions(root, report, state):
