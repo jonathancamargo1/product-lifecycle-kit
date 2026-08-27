@@ -215,7 +215,7 @@ no commit. Nos dois casos ela nao entra no repositorio.
 
 Arvore do kit:
 
-``` text
+```text
 .gitignore
 CHANGELOG.md
 OPEN_QUESTIONS.md
@@ -317,7 +317,7 @@ Arvore de um projeto alvo recem instalado com `install.sh . --adapters all`,
 antes de qualquer fase comecar. `docs/areas/` nasce vazio porque estrutura so
 nasce quando o artefato nasce:
 
-``` text
+```text
 .claude
 .claude/commands
 .claude/commands/decide.md
@@ -388,7 +388,7 @@ docs/codex-adapter.md
 Arvore de um projeto alvo depois de `install.sh . --adapters claude-code`, com
 as quatro fases do tier 1 ja executadas. E a saida real do modo A:
 
-``` text
+```text
 .
 ./.claude
 ./.claude/commands
@@ -487,7 +487,7 @@ reproduziveis.
 Um caso que passa e um que falha para cada codigo de `gate-check`, mais os
 testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 
-``` text
+```text
 $ python3 -m unittest discover bin/tests
 ...........................................................................................................................
 ----------------------------------------------------------------------
@@ -513,7 +513,7 @@ aberta (3a); `session-close --check` saindo 1 com a sessao aberta e 0 depois
 (3b e 3e); `gate-check --phase 13-build` saindo 1 antes de aprovar a fase 01 e
 0 depois (3c e 4a); e `guard-write` saindo 2 num artefato aprovado (4b).
 
-``` text
+```text
 
 ----- 1. Instalacao -----
 $ /home/user/product-lifecycle-kit/install.sh . --adapters claude-code
@@ -910,7 +910,7 @@ garantias que existem sem rede de seguranca de runtime:
 - o `commit-msg` recusa `sessao 99` quando o `session_counter` nao bate (8), e
   a mesma mudanca passa com uma mensagem que nao e de sessao (8a).
 
-``` text
+```text
 
 ----- 1. Instalacao sem nenhum hook de runtime -----
 $ /home/user/product-lifecycle-kit/install.sh . --adapters codex
@@ -1144,7 +1144,7 @@ Os arquivos de processo que o `--update` reescreve podem ser commitados porque
 `guard-commit` reconhece, pelo sha256 em `docs/.kit-manifest`, o que o proprio
 kit instalou. Edicao a mao no mesmo arquivo continua barrada.
 
-``` text
+```text
 
 ----- 1. Estado antes do update -----
 $ cat /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b/docs/KIT_VERSION
@@ -1218,7 +1218,7 @@ principio 12, o de que o nucleo nao depende de agente nenhum. Repare tambem no
 aviso impresso no fim: sem `tier` declarado o kit nao sabe o que exigir, e diz
 isso em vez de deixar passar.
 
-``` text
+```text
 $ /home/user/product-lifecycle-kit/install.sh . --adapters none
 Instalando o product-lifecycle-kit 1.0.0 em /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-none.
 
@@ -1277,7 +1277,7 @@ git que ja exista, em vez de sobrescrever, e que mescle os hooks num
 `.claude/settings.json` do projeto sem remover os que ja estavam la. Esta prova
 instala num repositorio que ja tem os dois.
 
-``` text
+```text
 ----- 1. O projeto ja tem um pre-commit proprio e hooks proprios -----
 $ cat .git/hooks/pre-commit
 #!/bin/sh
@@ -1325,7 +1325,7 @@ O proprio scanner nunca escreve o travessao literalmente: ele monta o caractere
 a partir do codepoint U+2014. Se o escrevesse, o arquivo do scanner seria uma
 ocorrencia e a varredura acusaria a si mesma.
 
-``` text
+```text
 $ grep -rn --exclude-dir=.git -e "<U+2014>" .
 EXIT: 1
 
