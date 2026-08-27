@@ -102,6 +102,45 @@ class TestNewArtifact(KitTestCase):
                            "--owner", "Claude Code")
         self.assertEqual(result.returncode, 1)
 
+    def _gate_aprovado(self):
+        path = self.write_artifact("nucleo", "01-contexto", "contexto",
+                                   status="approved", approved_by="Jonathan Camargo",
+                                   approved_at="2026-08-26")
+        estado = dict(DEFAULT_STATE)
+        estado["gates"] = {"01-contexto": {"status": "approved", "evidence": path,
+                                           "by": "Jonathan Camargo",
+                                           "date": "2026-08-26"}}
+        self.write_state(estado)
+        return path
+
+    def test_recusa_segundo_artefato_num_gate_aprovado(self):
+        """Um comando de agente nao pode reverter aprovacao humana."""
+        self._gate_aprovado()
+        result = self.novo("01-contexto", "nucleo", "Segundo contexto",
+                           "--owner", "Ana Souza")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        saida = (result.stdout + result.stderr).lower()
+        self.assertIn("supersede", saida)
+        texto = (self.root / "docs" / "STATE.md").read_text(encoding="utf-8")
+        self.assertIn("by: Jonathan Camargo", texto,
+                      "a aprovacao humana foi destruida")
+
+    def test_supersede_marca_o_anterior_e_registra_o_link(self):
+        anterior = self._gate_aprovado()
+        result = self.novo("01-contexto", "nucleo", "Segundo contexto",
+                           "--owner", "Ana Souza", "--supersede")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        velho = (self.root / anterior).read_text(encoding="utf-8")
+        self.assertIn("status: superseded", velho)
+        self.assertIn("superseded_by: docs/areas/nucleo/01-contexto/"
+                      "segundo-contexto.md", velho)
+        self.assertEqual(self.run_script("gate-check").returncode, 0)
+
+    def test_supersede_sem_gate_anterior_e_recusado(self):
+        result = self.novo("01-contexto", "nucleo", "Contexto",
+                           "--owner", "Ana Souza", "--supersede")
+        self.assertEqual(result.returncode, 1)
+
     def test_o_resultado_passa_no_gate_check(self):
         self.novo("01-contexto", "onboarding", "Contexto", "--owner", "Jonathan Camargo")
         result = self.run_script("gate-check")

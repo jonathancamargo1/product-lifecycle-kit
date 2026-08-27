@@ -142,6 +142,47 @@ class TestSessionClose(SessionBase):
         self.assertEqual(log, "inicial", "nao podia ter commitado")
 
 
+class TestHandoffNoDestino(SessionBase):
+    """O handoff escrito direto no destino nao pode ser apagado.
+
+    AGENTS.md manda escrever o handoff num arquivo. Nada impede o agente de
+    escolher o proprio nome que o script geraria. Se origem e destino forem o
+    mesmo arquivo, mover nao pode significar destruir.
+    """
+
+    def test_handoff_escrito_no_destino_sobrevive(self):
+        self.git_init()
+        self.abre()
+        import datetime
+        nome = "docs/_handoffs/%s-sessao-01.md" % datetime.date.today().isoformat()
+        destino = self.root / nome
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_text(HANDOFF_OK, encoding="utf-8")
+        result = self.run_script("session-close", "--handoff", nome)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(destino.exists(), "o handoff foi apagado")
+        self.assertIn("escrevi o contexto", destino.read_text(encoding="utf-8"))
+
+    def test_st04_falha_com_last_session_inexistente(self):
+        estado = dict(DEFAULT_STATE)
+        estado["last_session"] = "docs/_handoffs/2026-01-01-sessao-99.md"
+        self.write_state(estado)
+        result = self.run_script("gate-check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("ST-04", result.stdout)
+
+    def test_st04_passa_com_last_session_existente(self):
+        alvo = self.root / "docs" / "_handoffs" / "2026-01-01-sessao-01.md"
+        alvo.parent.mkdir(parents=True, exist_ok=True)
+        alvo.write_text(HANDOFF_OK, encoding="utf-8")
+        estado = dict(DEFAULT_STATE)
+        estado["last_session"] = "docs/_handoffs/2026-01-01-sessao-01.md"
+        self.write_state(estado)
+        result = self.run_script("gate-check")
+        self.assertNotIn("ST-04", result.stdout)
+        self.assertEqual(result.returncode, 0)
+
+
 class TestDecide(SessionBase):
     def test_cria_entrada_pendente_e_bloqueia_o_estado(self):
         result = self.run_script(

@@ -271,3 +271,62 @@ nao lista:
   "Prova de funcionamento" seja reproduzivel e nao apenas colada.
 
 Efeito: arvore do kit.
+
+## Q21. Codigo ST-04, para `last_session` apontar para arquivo que existe
+
+A tabela da secao 8 tem ST-03 para o `evidence` dos gates, mas nada para
+`last_session`. Uma revisao encontrou o buraco: era possivel ficar com
+`last_session` apontando para um handoff inexistente e `gate-check` sair 0.
+
+Interpretacao adotada: criado o codigo `ST-04`, severidade erro, com teste que
+passa e teste que falha. E o segundo codigo fora da tabela da secao 8, junto
+com IN-03 (Q6).
+
+Efeito: `bin/gate-check`, `bin/tests/test_session.py`.
+
+## Q22. `new-artifact --supersede`
+
+A secao 9 nao diz o que acontece quando `new-artifact` roda numa fase que ja
+tem artefato. O comportamento inicial era sobrescrever o gate em STATE.md, o
+que apagava `by` e `date` de uma aprovacao humana (contra o principio 4) e
+deixava dois artefatos vivos no mesmo gate (contra o principio 7).
+
+Interpretacao adotada: `new-artifact` recusa criar num gate que ja tem
+artefato. Com `--supersede`, cria o novo e marca o anterior com
+`status: superseded` e `superseded_by` apontando para o substituto, que e
+exatamente o fluxo que o principio 7 descreve. Substituir passa a ser ato
+explicito, nunca efeito colateral.
+
+Efeito: `bin/new-artifact`, `docs/AGENTS.md`.
+
+## Q23. Nao existe atalho para desligar o enforcement comum
+
+Durante a construcao os git hooks tinham uma variavel de ambiente que os
+desligava. Uma revisao apontou o obvio: o hook mora dentro do repositorio que
+o agente opera, entao qualquer agente que leia `.git/hooks/pre-commit`
+descobre o atalho, e no modo Codex o enforcement comum e a unica rede que
+existe.
+
+Interpretacao adotada: a variavel foi removida. Nao ha, e nao deve haver,
+forma sancionada de pular os hooks.
+
+Fica registrado o que nenhum hook pode fechar: `git commit --no-verify` e do
+proprio git e ignora qualquer hook. Isso vale para todo repositorio do mundo e
+nao e uma brecha do kit. A diferenca e que `--no-verify` deixa rastro obvio na
+intencao de quem o digitou, enquanto uma variavel do kit pareceria sancionada.
+
+Efeito: `git-hooks/pre-commit`, `git-hooks/commit-msg`.
+
+## Q24. As provas nao alteram o kit
+
+A prova do modo C precisa de uma versao nova do kit. Fazer isso no proprio
+repositorio deixava o kit permanentemente numa versao diferente da que estava
+colada nas provas dos modos A e B, o que quebrava a reproducibilidade que a
+secao 15 exige.
+
+Interpretacao adotada: `proofs/modo-c-update.sh` monta a versao nova numa
+copia temporaria do kit e roda o `install.sh` de la. O kit real nunca e
+tocado, e o modo C pode rodar quantas vezes for preciso, sempre com o mesmo
+resultado.
+
+Efeito: `proofs/modo-c-update.sh`, versao publicada do kit.

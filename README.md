@@ -140,14 +140,15 @@ comecar, e `--json` para consumo por script.
 | ST-01 | `STATE.md` parseavel e com todos os campos | erro |
 | ST-02 | Gate em `STATE.md` diverge do frontmatter do artefato | erro |
 | ST-03 | Path de `evidence` nao existe | erro |
+| ST-04 | `last_session` aponta para handoff que nao existe | erro |
 | SQ-01 | Fase em andamento com gate obrigatorio anterior nao aprovado | erro |
 | DC-01 | `PENDING` em `decisions.log` sem `blocked_by` correspondente | erro |
 | VC-01 | Termo proibido pelo glossario aparece no codigo ou nos documentos | erro |
 | DR-01 | Pasta vazia sob `docs/areas/` | aviso |
 | KV-01 | `docs/KIT_VERSION` ausente ou incompativel com os scripts | aviso |
 
-Avisos nao alteram o exit code. `IN-03` nao consta da especificacao original e
-esta registrado em `OPEN_QUESTIONS.md`.
+Avisos nao alteram o exit code. `IN-03` e `ST-04` nao constam da tabela da
+especificacao original; estao registrados em `OPEN_QUESTIONS.md`, Q6 e Q21.
 
 ## Adaptador versus enforcement comum
 
@@ -159,10 +160,10 @@ esta demonstrada no modo B abaixo.
 |---|---|---|---|
 | Escrita em arquivo protegido nao entra | `PreToolUse` roda `guard-write`, exit 2 bloqueia a ferramenta | `pre-commit` roda `guard-commit`, que recusa o commit | Modo B, blocos 5 e 5a |
 | Decisao humana libera a escrita | mesmo hook, apos entrada `DECIDED` | mesmo guard, apos entrada `DECIDED` | Modo B, blocos 6 e 6a |
-| Sessao nao encerra sem handoff | `Stop` roda `session-close --check` e bloqueia | `guard-commit` recusa commit em `docs/` enquanto `session_open` for `true` | Modo B, sessoes 01 a 04, e `bin/tests/test_guards.py` |
-| Sessao anterior nao fica aberta | consequencia do `Stop` | `session-open` se recusa a abrir | Modo A, bloco 3a |
-| Mensagem de commit de sessao correta | nao ha | `commit-msg` valida `sessao NN` contra `session_counter` | Modo B, bloco 7 |
-| Contexto carregado na abertura | `SessionStart` roda `session-open` | instrucao em `AGENTS.md` | Modo B, bloco 3 |
+| Sessao nao encerra sem handoff | `Stop` roda `session-close --check` e bloqueia | `guard-commit` recusa commit em `docs/` enquanto `session_open` for `true` | Modo B, blocos 5, 5a e 5b |
+| Sessao anterior nao fica aberta | consequencia do `Stop` | `session-open` se recusa a abrir (script, nao git hook) | Modo A, bloco 3a |
+| Mensagem de commit de sessao correta | nao ha | `commit-msg` valida `sessao NN` contra `session_counter` | Modo B, bloco 8 |
+| Contexto carregado na abertura | `SessionStart` roda `session-open` | so instrucao em `AGENTS.md`, sem equivalente de maquina | Modo B, bloco 3 |
 
 A ultima linha e a unica garantia que fica so no adaptador, e nao ha como impor
 por maquina: nenhum script obriga um agente a ler antes de agir. As outras sao
@@ -267,6 +268,7 @@ install.sh
 proofs/
   README.md
   adapters-none.sh
+  encadeamento.sh
   modo-a-claude-code.sh
   modo-b-codex.sh
   modo-c-update.sh
@@ -383,10 +385,10 @@ as quatro fases do tier 1 ja executadas. E a saida real do modo A:
 ./docs/_context/decisions.log
 ./docs/_context/principles.md
 ./docs/_handoffs
-./docs/_handoffs/2026-08-26-sessao-01.md
-./docs/_handoffs/2026-08-26-sessao-02.md
-./docs/_handoffs/2026-08-26-sessao-03.md
-./docs/_handoffs/2026-08-26-sessao-04.md
+./docs/_handoffs/2026-08-27-sessao-01.md
+./docs/_handoffs/2026-08-27-sessao-02.md
+./docs/_handoffs/2026-08-27-sessao-03.md
+./docs/_handoffs/2026-08-27-sessao-04.md
 ./docs/_process
 ./docs/_process/definition-of-done.md
 ./docs/_process/definition-of-ready.md
@@ -436,10 +438,11 @@ tenha. Os testes do kit nao sao copiados para o alvo.
 
 ## Prova de funcionamento
 
-Tudo abaixo e saida real, colada sem edicao. Os scripts que geram cada bloco
-estao em `proofs/` e podem ser rodados de novo do zero. Os modos A e B foram
-executados com o kit na versao 1.0.0; o modo C e o que levou o kit a 1.1.0, que
-e exatamente o que ele existe para demonstrar.
+Tudo abaixo e saida real, colada sem edicao, gerada com o kit na versao 1.0.0.
+Os scripts que produzem cada bloco estao em `proofs/` e podem ser rodados de
+novo do zero. Nenhum deles altera o kit: a prova do modo C monta a versao nova
+numa copia temporaria, justamente para que os outros blocos continuem
+reproduziveis.
 
 ### Testes
 
@@ -448,9 +451,9 @@ testes dos guards, das sessoes e do `new-artifact`.
 
 ```text
 $ python3 -m unittest discover bin/tests
-...................................................................................................
+.........................................................................................................
 ----------------------------------------------------------------------
-Ran 99 tests in 10.839s
+Ran 105 tests in 11.911s
 
 OK
 EXIT: 0
@@ -514,10 +517,20 @@ qualquer outra coisa.
 | Acao | Qualquer runtime | Claude Code tambem |
 |---|---|---|
 | Abrir sessao | `bin/lifecycle/session-open --agent <codex\|claude-code\|human>` | `/session-open` |
-| Criar artefato | `bin/lifecycle/new-artifact <fase> <area> "<titulo>" --owner <nome>` | `/new-artifact` |
+| Criar artefato | `bin/lifecycle/new-artifact <fase> <area> "<titulo>" --owner <nome> [--inputs <paths>]` | `/new-artifact` |
 | Abrir decisao | `bin/lifecycle/decide --titulo "..." --afeta <path>` | `/decide` |
 | Verificar tudo | `bin/lifecycle/gate-check` | nao ha |
 | Fechar sessao | `bin/lifecycle/session-close --handoff <arquivo>` | `/session-close` |
+
+`--inputs` e obrigatorio fora das fases 01 e 02: os paths dos artefatos em que
+este se apoia, separados por virgula. Um artefato por gate: para substituir um
+que ja existe, use `--supersede`.
+
+## O handoff
+
+Escreva num arquivo temporario fora de `docs/_handoffs/`, com exatamente estas
+tres secoes, nesta ordem, e no maximo 15 linhas de conteudo: `## Fiz`,
+`## Falta`, `## Cuidado com`. O script move para o lugar certo.
 
 ## Regras
 
@@ -535,22 +548,13 @@ qualquer outra coisa.
 12. O nucleo nao sabe qual agente o opera. Adaptador nunca substitui gate.
 13. O kit e versionado. `docs/KIT_VERSION` diz qual versao esta instalada.
 
-## O que voce pode editar
+## O que voce pode e nao pode editar
 
-Artefatos em `docs/areas/` com status `draft` ou `review`, `docs/STATE.md`,
-handoffs em `docs/_handoffs/`, e o codigo do projeto.
+Pode: artefatos em `docs/areas/` com status `draft` ou `review`,
+`docs/STATE.md`, handoffs, e o codigo do projeto.
 
-## O que voce nao pode editar
-
-`docs/_context/CONTEXT.md`, ADR com status `accepted`, artefato com status
-`approved`, `docs/_process/` inteiro, e este arquivo. Os guards recusam a
-escrita e o `pre-commit` recusa o commit.
-
-## Ao concluir um artefato
-
-Marque `status: proposed`. Nunca `approved`. Registre o gate em
-`docs/STATE.md` com `evidence` apontando para o artefato, e pare. Quem aprova
-e humano, editando frontmatter e STATE.md.
+Nao pode: `docs/_context/CONTEXT.md`, ADR `accepted`, artefato `approved`,
+`docs/_process/` inteiro, e este arquivo.
 
 Nunca aprove um gate. Nunca suponha regra de negocio. Nunca edite CONTEXT.md,
 ADR aceita, artefato aprovado ou docs/_process sem decisao humana registrada.
@@ -696,7 +700,7 @@ artefato docs/areas/nucleo/01-contexto/contexto-do-prova-a.md marcado proposed p
 
 ----- 3d. session-close com handoff -----
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-a.md
-Handoff registrado em docs/_handoffs/2026-08-26-sessao-01.md.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-01.md.
 gate-check: nenhuma ocorrencia.
 Commit: sessao 01: 01-contexto escrevi o contexto e o nao-escopo
 EXIT: 0
@@ -707,7 +711,7 @@ session-close: nada pendente, a sessao pode encerrar.
 EXIT: 0
 
 ----- 4. Humano aprova o gate 01 -----
-gate 01-contexto aprovado por Jonathan Camargo em 2026-08-26
+gate 01-contexto aprovado por Jonathan Camargo em 2026-08-27
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -733,11 +737,11 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/13-build-log/build-do-prova-a.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-a.md
-Handoff registrado em docs/_handoffs/2026-08-26-sessao-02.md.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-02.md.
 gate-check: nenhuma ocorrencia.
 Commit: sessao 02: 13-build-log executei a fase 13-build
 EXIT: 0
-gate 13-build-log aprovado por Jonathan Camargo em 2026-08-26
+gate 13-build-log aprovado por Jonathan Camargo em 2026-08-27
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -752,11 +756,11 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/14-review/review-do-prova-a.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-a.md
-Handoff registrado em docs/_handoffs/2026-08-26-sessao-03.md.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-03.md.
 gate-check: nenhuma ocorrencia.
 Commit: sessao 03: 14-review executei a fase 14-review
 EXIT: 0
-gate 14-review aprovado por Jonathan Camargo em 2026-08-26
+gate 14-review aprovado por Jonathan Camargo em 2026-08-27
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -771,11 +775,11 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/17-ship/ship-do-prova-a.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-a.md
-Handoff registrado em docs/_handoffs/2026-08-26-sessao-04.md.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-04.md.
 gate-check: nenhuma ocorrencia.
 Commit: sessao 04: 17-ship executei a fase 17-ship
 EXIT: 0
-gate 17-ship aprovado por Jonathan Camargo em 2026-08-26
+gate 17-ship aprovado por Jonathan Camargo em 2026-08-27
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -797,38 +801,38 @@ gates:                        # slug da fase: {status, evidence, by, date}
     status: approved
     evidence: docs/areas/nucleo/01-contexto/contexto-do-prova-a.md
     by: Jonathan Camargo
-    date: 2026-08-26
+    date: 2026-08-27
   13-build-log:
     status: approved
     evidence: docs/areas/nucleo/13-build-log/build-do-prova-a.md
     by: Jonathan Camargo
-    date: 2026-08-26
+    date: 2026-08-27
   14-review:
     status: approved
     evidence: docs/areas/nucleo/14-review/review-do-prova-a.md
     by: Jonathan Camargo
-    date: 2026-08-26
+    date: 2026-08-27
   17-ship:
     status: approved
     evidence: docs/areas/nucleo/17-ship/ship-do-prova-a.md
     by: Jonathan Camargo
-    date: 2026-08-26
-last_session: docs/_handoffs/2026-08-26-sessao-04.md # path do ultimo handoff
+    date: 2026-08-27
+last_session: docs/_handoffs/2026-08-27-sessao-04.md # path do ultimo handoff
 session_counter: 4
 session_open: false           # true entre session-open e session-close
 session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-9d65f46 humano aprova o gate 17-ship
-cefc7da sessao 04: 17-ship executei a fase 17-ship
-0ba37f0 humano aprova o gate 14-review
-3d624ef sessao 03: 14-review executei a fase 14-review
-195a7ac humano aprova o gate 13-build-log
-7a1d4c8 sessao 02: 13-build-log executei a fase 13-build
-b42a49c humano aprova o gate 01-contexto
-90d5251 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-e370d6e instala o product-lifecycle-kit
+d00327e humano aprova o gate 17-ship
+b5087ad sessao 04: 17-ship executei a fase 17-ship
+d124102 humano aprova o gate 14-review
+5edbccd sessao 03: 14-review executei a fase 14-review
+628bd4c humano aprova o gate 13-build-log
+dc9c295 sessao 02: 13-build-log executei a fase 13-build
+c380119 humano aprova o gate 01-contexto
+545de51 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+8ffd322 instala o product-lifecycle-kit
 EXIT: 0
 ```
 
@@ -837,12 +841,18 @@ EXIT: 0
 `proofs/modo-b-codex.sh`. Instala com `--adapters codex`, que nao instala hook
 de runtime nenhum. A mesma sequencia de quatro sessoes, com `--agent codex`.
 
-Alem do ciclo, demonstra as tres coisas que so o modo B pode provar, porque sao
-as que existem sem rede de seguranca de runtime: o `git commit` de uma edicao
-num artefato aprovado sem decisao e abortado pelo `pre-commit` com a saida de
-`guard-commit` (5a); o mesmo commit passa depois de uma entrada `DECIDED` em
-`decisions.log` com o path em `Afeta` (6a); e o `commit-msg` recusa
-`sessao 99` quando o `session_counter` e 4 (7).
+Alem do ciclo, demonstra o que so o modo B pode provar, porque sao as
+garantias que existem sem rede de seguranca de runtime:
+
+- commit em `docs/` com a sessao aberta e recusado, e passa depois do
+  `session-close`; commit de codigo fora de `docs/` passa livre (5, 5a, 5b).
+  E o equivalente comum do hook `Stop`.
+- o `git commit` de uma edicao num artefato aprovado sem decisao e abortado
+  pelo `pre-commit` com a saida de `guard-commit` (6a), e o mesmo commit passa
+  depois de uma entrada `DECIDED` em `decisions.log` com o path em `Afeta`
+  (7a).
+- o `commit-msg` recusa `sessao 99` quando o `session_counter` nao bate (8), e
+  a mesma mudanca passa com uma mensagem que nao e de sessao (8a).
 
 ```text
 
@@ -877,7 +887,7 @@ commit inicial ok
 
 ----- 3. Sessao 01, fase 01-contexto, invocando os scripts direto -----
 $ python3 bin/lifecycle/session-open --agent codex
-[cabecalho de AGENTS.md, STATE.md, CONTEXT.md e principles.md suprimido aqui, 171 linhas]
+[cabecalho de AGENTS.md, STATE.md, CONTEXT.md e principles.md suprimido aqui, 172 linhas]
 gate-check: nenhuma ocorrencia.
 
 Sessao 01 aberta para o agente codex.
@@ -890,11 +900,11 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/01-contexto/contexto-do-prova-b.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
-Handoff registrado em docs/_handoffs/2026-08-26-sessao-01.md.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-01.md.
 gate-check: nenhuma ocorrencia.
 Commit: sessao 01: 01-contexto escrevi o contexto e o nao-escopo
 EXIT: 0
-gate 01-contexto aprovado por Jonathan Camargo em 2026-08-26
+gate 01-contexto aprovado por Jonathan Camargo em 2026-08-27
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -908,11 +918,11 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/13-build-log/build-do-prova-b.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
-Handoff registrado em docs/_handoffs/2026-08-26-sessao-02.md.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-02.md.
 gate-check: nenhuma ocorrencia.
 Commit: sessao 02: 13-build-log executei a fase 13-build
 EXIT: 0
-gate 13-build-log aprovado por Jonathan Camargo em 2026-08-26
+gate 13-build-log aprovado por Jonathan Camargo em 2026-08-27
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -926,11 +936,11 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/14-review/review-do-prova-b.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
-Handoff registrado em docs/_handoffs/2026-08-26-sessao-03.md.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-03.md.
 gate-check: nenhuma ocorrencia.
 Commit: sessao 03: 14-review executei a fase 14-review
 EXIT: 0
-gate 14-review aprovado por Jonathan Camargo em 2026-08-26
+gate 14-review aprovado por Jonathan Camargo em 2026-08-27
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -944,87 +954,117 @@ Preencha o template e marque status: proposed. Nunca approved.
 EXIT: 0
 artefato docs/areas/nucleo/17-ship/ship-do-prova-b.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
-Handoff registrado em docs/_handoffs/2026-08-26-sessao-04.md.
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-04.md.
 gate-check: nenhuma ocorrencia.
 Commit: sessao 04: 17-ship executei a fase 17-ship
 EXIT: 0
-gate 17-ship aprovado por Jonathan Camargo em 2026-08-26
+gate 17-ship aprovado por Jonathan Camargo em 2026-08-27
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
------ 5. Edicao num artefato aprovado. Nada impede a escrita no disco. -----
+----- 5. Sessao aberta: o trabalho em docs/ nao entra sem handoff -----
+$ grep session_open docs/STATE.md
+session_open: true            # true entre session-open e session-close
+$ git add -A
+EXIT: 0
+$ git commit -m tenta entrar com a sessao aberta
+gate-check: nenhuma ocorrencia.
+Sessao 5 ainda aberta (agente codex). O handoff dela nao foi escrito.
+Feche com: session-close --handoff <arquivo>
+EXIT: 1
+
+----- 5a. O mesmo commit passa depois do session-close -----
+$ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
+Handoff registrado em docs/_handoffs/2026-08-27-sessao-05.md.
+gate-check: nenhuma ocorrencia.
+Commit: sessao 05: 17-ship trabalho da sessao 05
+EXIT: 0
+
+----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
+$ git commit -m commit de codigo com a sessao aberta
+gate-check: nenhuma ocorrencia.
+[main a608d04] commit de codigo com a sessao aberta
+ 1 file changed, 1 insertion(+)
+ create mode 100644 src/app.py
+EXIT: 0
+
+----- 6. Edicao num artefato aprovado. Nada impede a escrita no disco. -----
 $ git add docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
 EXIT: 0
 
------ 5a. git commit e abortado pelo pre-commit, com a saida de guard-commit -----
+----- 6a. git commit e abortado pelo pre-commit, com a saida de guard-commit -----
 $ git commit -m altera um artefato aprovado sem decisao
 gate-check: nenhuma ocorrencia.
 Arquivo protegido. Abra uma decisao (script decide) ou resolva a pendente.
   docs/areas/nucleo/01-contexto/contexto-do-prova-b.md (artefato aprovado)
 EXIT: 1
 
------ 5b. o artefato aprovado continua intocado no repositorio -----
+----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-aa1d370 humano aprova o gate 01-contexto
+b563235 humano aprova o gate 01-contexto
 EXIT: 0
 
------ 6. Entrada DECIDED em decisions.log liberando o mesmo path -----
+----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
 decisao D-0001 registrada como DECIDED, Afeta: docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
 $ git add -A
 EXIT: 0
 
------ 6a. o mesmo commit agora passa -----
+----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main c5a90b4] corrige o artefato aprovado sob a decisao D-0001
+[main ba1b5af] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
------ 7. commit-msg recusa sessao 99 quando o session_counter e 4 -----
+----- 8. commit-msg recusa sessao 99 quando o session_counter nao bate -----
 $ grep session_counter docs/STATE.md
-session_counter: 4
+session_counter: 6
 $ git commit -m sessao 99: 17-ship resumo mentiroso
 gate-check: nenhuma ocorrencia.
-commit-msg: a mensagem diz sessao 99 mas o session_counter em docs/STATE.md e 4.
+commit-msg: a mensagem diz sessao 99 mas o session_counter em docs/STATE.md e 6.
 EXIT: 1
 
------ 7a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
+----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main d2d40b3] adiciona uma nota solta
+[main ddee3bd] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
 
------ 8. Estado final -----
+----- 9. Estado final -----
 $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-d2d40b3 adiciona uma nota solta
-c5a90b4 corrige o artefato aprovado sob a decisao D-0001
-d260cd8 humano aprova o gate 17-ship
-5436d41 sessao 04: 17-ship executei a fase 17-ship
-b57d32f humano aprova o gate 14-review
-92a6c69 sessao 03: 14-review executei a fase 14-review
-c55a7a5 humano aprova o gate 13-build-log
-637befc sessao 02: 13-build-log executei a fase 13-build
-aa1d370 humano aprova o gate 01-contexto
-1f20976 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-6847eb5 instala o product-lifecycle-kit
+ddee3bd adiciona uma nota solta
+ba1b5af corrige o artefato aprovado sob a decisao D-0001
+69cc062 sessao 06: 17-ship commit de codigo
+a608d04 commit de codigo com a sessao aberta
+b02e417 sessao 05: 17-ship trabalho da sessao 05
+514e255 humano aprova o gate 17-ship
+4d5a06f sessao 04: 17-ship executei a fase 17-ship
+be7df99 humano aprova o gate 14-review
+8216f89 sessao 03: 14-review executei a fase 14-review
+f2e7965 humano aprova o gate 13-build-log
+bf09e2e sessao 02: 13-build-log executei a fase 13-build
+b563235 humano aprova o gate 01-contexto
+c6a2c24 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+47ab6a1 instala o product-lifecycle-kit
 EXIT: 0
 ```
 
 ### Modo C: atualizacao
 
 `proofs/modo-c-update.sh`. Com o projeto `prova-b` ja instalado na versao
-1.0.0, sobe o kit para 1.1.0, acrescenta a secao correspondente ao
-`CHANGELOG.md` e roda `install.sh <prova-b> --update`.
+1.0.0, monta uma copia temporaria do kit na versao 1.1.0, com a secao
+correspondente no `CHANGELOG.md`, e roda o `install.sh` dessa copia com
+`--update`.
 
 O que a prova mede: uma soma sha256 de tudo que o `--update` tem proibido
 tocar, tirada antes e depois. `docs/STATE.md`, `docs/_handoffs/` e
 `docs/areas/` ficam identicos; so `docs/KIT_VERSION`, os scripts e o manifesto
-mudam.
+mudam. O bloco 6 mostra que o kit real continua na versao de antes.
 
 ```text
 
@@ -1032,16 +1072,17 @@ mudam.
 $ cat /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b/docs/KIT_VERSION
 1.0.0
 EXIT: 0
-impressao digital de STATE.md + _handoffs + areas: fc21c651c595c5279f5b98d007dd4f1028214359fbf3fcc46bd65432c857a1cf
+impressao digital de STATE.md + _handoffs + areas: 54836ebb41342f0ea4d0769a113dffc490b8acbb38b1a24c73306be43d3fc3eb
 
------ 2. Nova versao do kit -----
-VERSION agora e 1.1.0 e o CHANGELOG.md ganhou a secao 1.1.0
-$ cat /home/user/product-lifecycle-kit/VERSION
+----- 2. Nova versao do kit, montada numa copia temporaria -----
+copia do kit montada na versao 1.1.0. O kit real segue intocado.
+$ cat <copia>/VERSION
 1.1.0
-EXIT: 0
+$ cat /home/user/product-lifecycle-kit/VERSION   (o kit real)
+1.0.0
 
------ 3. install.sh --update -----
-$ /home/user/product-lifecycle-kit/install.sh /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b --update
+----- 3. install.sh --update, rodado a partir da copia -----
+$ <copia>/install.sh /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b --update
 Atualizando o kit em /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b para a versao 1.1.0.
 Versao anterior: 1.0.0
   adaptador claude-code nao estava instalado, pulando
@@ -1051,8 +1092,8 @@ Mudancas desta versao (CHANGELOG.md):
   ## 1.1.0
   
   Versao usada para provar o fluxo `install.sh --update` (modo C do README).
-  Nenhuma mudanca de comportamento em relacao a 1.0.0: processo e scripts sao
-  reenviados ao alvo e `docs/KIT_VERSION` passa a 1.1.0, sem tocar em estado,
+  Nenhuma mudanca de comportamento em relacao a versao anterior: processo e
+  scripts sao reenviados ao alvo e `docs/KIT_VERSION` sobe, sem tocar em estado,
   contexto, handoffs ou artefatos.
   
 
@@ -1064,14 +1105,14 @@ gate-check: nenhuma ocorrencia.
 Instalacao concluida. gate-check saiu com 0.
 EXIT: 0
 
------ 4. KIT_VERSION mudou -----
+----- 4. KIT_VERSION do alvo mudou -----
 $ cat /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b/docs/KIT_VERSION
 1.1.0
 EXIT: 0
 
 ----- 5. STATE.md, _handoffs e areas nao mudaram -----
-antes:  fc21c651c595c5279f5b98d007dd4f1028214359fbf3fcc46bd65432c857a1cf
-depois: fc21c651c595c5279f5b98d007dd4f1028214359fbf3fcc46bd65432c857a1cf
+antes:  54836ebb41342f0ea4d0769a113dffc490b8acbb38b1a24c73306be43d3fc3eb
+depois: 54836ebb41342f0ea4d0769a113dffc490b8acbb38b1a24c73306be43d3fc3eb
 IGUAIS. O update nao tocou em estado, handoffs nem artefatos.
 
 ----- 5a. git status do alvo depois do update -----
@@ -1081,10 +1122,14 @@ $ git -C /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-
  M docs/KIT_VERSION
 EXIT: 0
 
------ 6. gate-check continua limpo depois do update -----
-$ git -C /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b --no-pager log --oneline -1
-d2d40b3 adiciona uma nota solta
+----- 6. O kit real continua na versao de antes -----
+$ git -C /home/user/product-lifecycle-kit status --short VERSION CHANGELOG.md bin/_kitlib.py
+ M CHANGELOG.md
+ M VERSION
+ M bin/_kitlib.py
 EXIT: 0
+
+----- 7. gate-check continua limpo depois do update -----
 $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
@@ -1110,8 +1155,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 2399 Aug 26 23:46 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  672 Aug 26 23:46 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 2341 Aug 27 00:04 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 27 00:04 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1170,7 +1215,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) 88e04bd] primeiro commit
+[main (root-commit) 4be2384] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 a.txt
 EXIT: 0
@@ -1192,13 +1237,13 @@ $ grep -rn --exclude-dir=.git -e "<U+2014>" .
 EXIT: 1
 
 $ python3 varredura de codepoints em todos os arquivos versionados
-arquivos versionados verificados: 75
+arquivos versionados verificados: 76
 ocorrencias de travessao U+2014 ou emoji: 0
 EXIT: 0
 
 $ limites de tamanho
 templates: 21 arquivos, maior tem 75 linhas, limite 80
-docs/AGENTS.md: 56 linhas, limite 60
+docs/AGENTS.md: 57 linhas, limite 60
 adapters/claude-code/CLAUDE.md: 2 linhas, exigido 2
 
 $ pastas vazias fora dos .gitkeep
@@ -1208,7 +1253,7 @@ nenhuma
 
 ## Antes de instalar num projeto real
 
-1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 20, e cada um registra uma
+1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 24, e cada um registra uma
    decisao tomada por interpretacao conservadora, nao por certeza.
 2. Rode a prova do modo B voce mesmo, do zero, sem olhar esta secao. E o modo
    sem rede de seguranca de runtime: se funciona ali, funciona em qualquer

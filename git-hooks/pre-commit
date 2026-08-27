@@ -13,10 +13,6 @@ for dir in bin/lifecycle bin; do
     fi
 done
 
-if [ -n "$PLK_SKIP_HOOKS" ]; then
-    exit 0
-fi
-
 if [ -z "$LIFECYCLE" ]; then
     exit 0
 fi

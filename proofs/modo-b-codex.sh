@@ -116,17 +116,40 @@ sessao 17-ship "Ship do prova-b" \
 # ---------------------------------------------------------------------------
 ARTEFATO=docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
 
-titulo "5. Edicao num artefato aprovado. Nada impede a escrita no disco."
+# ---------------------------------------------------------------------------
+# Equivalente comum da garantia do hook Stop: sem hook de runtime, nada impede
+# o agente de parar no meio. O que impede o trabalho de entrar sem handoff e o
+# guard-commit, chamado pelo pre-commit.
+# ---------------------------------------------------------------------------
+titulo "5. Sessao aberta: o trabalho em docs/ nao entra sem handoff"
+python3 $L/session-open --agent codex > /dev/null 2>&1
+printf '$ grep session_open docs/STATE.md\n'
+grep session_open docs/STATE.md
+printf 'linha em docs/ alterada pelo agente no meio da sessao\n' >> $ARTEFATO.rascunho
+mostra git add -A
+mostra git commit -m "tenta entrar com a sessao aberta"
+
+titulo "5a. O mesmo commit passa depois do session-close"
+mostra python3 $L/session-close --handoff "$(handoff 'trabalho da sessao 05')"
+
+titulo "5b. Codigo fora de docs/ nao e refem do protocolo de sessao"
+python3 $L/session-open --agent codex > /dev/null 2>&1
+mkdir -p src && printf 'x = 1\n' > src/app.py
+git add src/app.py
+mostra git commit -m "commit de codigo com a sessao aberta"
+python3 $L/session-close --handoff "$(handoff 'commit de codigo')" > /dev/null 2>&1
+
+titulo "6. Edicao num artefato aprovado. Nada impede a escrita no disco."
 printf 'Uma linha que um agente sem hook de runtime conseguiu escrever.\n' >> $ARTEFATO
 mostra git add "$ARTEFATO"
 
-titulo "5a. git commit e abortado pelo pre-commit, com a saida de guard-commit"
+titulo "6a. git commit e abortado pelo pre-commit, com a saida de guard-commit"
 mostra git commit -m "altera um artefato aprovado sem decisao"
 
-titulo "5b. o artefato aprovado continua intocado no repositorio"
+titulo "6b. o artefato aprovado continua intocado no repositorio"
 mostra git log --oneline -1 -- "$ARTEFATO"
 
-titulo "6. Entrada DECIDED em decisions.log liberando o mesmo path"
+titulo "7. Entrada DECIDED em decisions.log liberando o mesmo path"
 python3 - "$ARTEFATO" <<'PY'
 import sys, datetime
 from pathlib import Path
@@ -145,19 +168,19 @@ print("decisao D-0001 registrada como DECIDED, Afeta: %s" % alvo)
 PY
 mostra git add -A
 
-titulo "6a. o mesmo commit agora passa"
+titulo "7a. o mesmo commit agora passa"
 mostra git commit -m "corrige o artefato aprovado sob a decisao D-0001"
 
-titulo "7. commit-msg recusa sessao 99 quando o session_counter e 4"
+titulo "8. commit-msg recusa sessao 99 quando o session_counter nao bate"
 printf '$ grep session_counter docs/STATE.md\n'
 grep session_counter docs/STATE.md
 printf 'nota.txt\n' > nota.txt
 git add nota.txt
 mostra git commit -m "sessao 99: 17-ship resumo mentiroso"
 
-titulo "7a. a mesma mudanca passa com uma mensagem que nao e de sessao"
+titulo "8a. a mesma mudanca passa com uma mensagem que nao e de sessao"
 mostra git commit -m "adiciona uma nota solta"
 
-titulo "8. Estado final"
+titulo "9. Estado final"
 mostra python3 $L/gate-check
 mostra git log --oneline

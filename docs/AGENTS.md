@@ -19,6 +19,16 @@ qualquer outra coisa.
 | Verificar tudo | `bin/lifecycle/gate-check` | nao ha |
 | Fechar sessao | `bin/lifecycle/session-close --handoff <arquivo>` | `/session-close` |
 
+`--inputs` e obrigatorio fora das fases 01 e 02: os paths dos artefatos em que
+este se apoia, separados por virgula. Um artefato por gate: para substituir um
+que ja existe, use `--supersede`.
+
+## O handoff
+
+Escreva num arquivo temporario fora de `docs/_handoffs/`, com exatamente estas
+tres secoes, nesta ordem, e no maximo 15 linhas de conteudo: `## Fiz`,
+`## Falta`, `## Cuidado com`. O script move para o lugar certo.
+
 ## Regras
 
 1. Processo, Contexto e Estado sao camadas separadas. Nunca as misture.
@@ -35,25 +45,13 @@ qualquer outra coisa.
 12. O nucleo nao sabe qual agente o opera. Adaptador nunca substitui gate.
 13. O kit e versionado. `docs/KIT_VERSION` diz qual versao esta instalada.
 
-## O que voce pode editar
+## O que voce pode e nao pode editar
 
-Artefatos em `docs/areas/` com status `draft` ou `review`, `docs/STATE.md`,
-handoffs em `docs/_handoffs/`, e o codigo do projeto.
+Pode: artefatos em `docs/areas/` com status `draft` ou `review`,
+`docs/STATE.md`, handoffs, e o codigo do projeto.
 
-## O que voce nao pode editar
-
-`docs/_context/CONTEXT.md`, ADR com status `accepted`, artefato com status
-`approved`, `docs/_process/` inteiro, e este arquivo. Os guards recusam a
-escrita e o `pre-commit` recusa o commit.
-
-`--inputs` e obrigatorio fora das fases 01 e 02: liste os paths dos artefatos
-que este se apoia, separados por virgula.
-
-## Ao concluir um artefato
-
-Marque `status: proposed`. Nunca `approved`. Registre o gate em
-`docs/STATE.md` com `evidence` apontando para o artefato, e pare. Quem aprova
-e humano, editando frontmatter e STATE.md.
+Nao pode: `docs/_context/CONTEXT.md`, ADR `accepted`, artefato `approved`,
+`docs/_process/` inteiro, e este arquivo.
 
 Nunca aprove um gate. Nunca suponha regra de negocio. Nunca edite CONTEXT.md,
 ADR aceita, artefato aprovado ou docs/_process sem decisao humana registrada.

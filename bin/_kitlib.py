@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-KIT_VERSION = "1.1.0"
+KIT_VERSION = "1.0.0"
 
 PHASES = [
     "01-contexto", "02-discovery", "03-csd", "04-personas-jornada", "05-prd",

@@ -1,6 +1,8 @@
 # Protocolo de sessao
 
-Vale para qualquer runtime: Codex, Claude Code, Cursor ou humano no editor.
+Vale para qualquer runtime. Os git hooks nao dependem de agente nenhum, entao
+valem sempre. Ja o campo `--agent` aceita apenas `codex`, `claude-code` ou
+`human`: quem opera de um editor, Cursor incluido, abre a sessao como `human`.
 
 ## A regra
 

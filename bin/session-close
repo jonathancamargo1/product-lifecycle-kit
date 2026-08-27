@@ -109,11 +109,15 @@ def main(argv=None):
     destino = (Path(root) / "docs" / "_handoffs"
                / ("%s-sessao-%02d.md" % (kit.today(), numero)))
     destino.parent.mkdir(parents=True, exist_ok=True)
+    mesmo_arquivo = (origem.resolve() == destino.resolve())
     destino.write_text(texto, encoding="utf-8")
-    try:
-        origem.unlink()
-    except OSError:
-        pass
+    if not mesmo_arquivo:
+        # Se origem e destino sao o mesmo arquivo, mover significaria apagar o
+        # handoff que acabou de ser gravado. Nada de unlink nesse caso.
+        try:
+            origem.unlink()
+        except OSError:
+            pass
 
     rel = destino.relative_to(root).as_posix()
     state["last_session"] = rel

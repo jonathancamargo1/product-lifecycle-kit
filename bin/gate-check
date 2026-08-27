@@ -129,6 +129,11 @@ def check_state(root, report):
         report.erro("ST-01", "docs/STATE.md", 1,
                     "campo ausente em STATE.md: %s" % ", ".join(faltando))
         return None
+    ultima = state.get("last_session")
+    if ultima and not (Path(root) / str(ultima)).exists():
+        report.erro("ST-04", "docs/STATE.md", state_line(root, "last_session"),
+                    "last_session aponta para arquivo que nao existe: %s" % ultima)
+
     gates = state.get("gates") or {}
     if not isinstance(gates, dict):
         report.erro("ST-01", "docs/STATE.md", 1, "gates precisa ser um mapeamento")

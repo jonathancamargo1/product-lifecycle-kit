@@ -78,6 +78,26 @@ def cria_readme_da_area(root, area, owner, tier):
     return destino
 
 
+def marca_superseded(root, rel_anterior, rel_novo):
+    """Fecha o artefato anterior do gate, com link para o substituto."""
+    caminho = Path(root) / rel_anterior
+    linhas = caminho.read_text(encoding="utf-8").splitlines()
+    dentro = False
+    for index, linha in enumerate(linhas):
+        if linha.strip() == "---":
+            if dentro:
+                break
+            dentro = True
+            continue
+        if not dentro:
+            continue
+        if linha.startswith("status:"):
+            linhas[index] = "status: superseded"
+        elif linha.startswith("superseded_by:"):
+            linhas[index] = "superseded_by: %s" % rel_novo
+    caminho.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("phase")
@@ -85,6 +105,9 @@ def main(argv=None):
     parser.add_argument("titulo")
     parser.add_argument("--owner", required=True)
     parser.add_argument("--inputs", default="")
+    parser.add_argument("--supersede", action="store_true",
+                        help="substitui o artefato atual do gate, marcando o "
+                             "anterior como superseded")
     args = parser.parse_args(argv)
 
     root = kit.repo_root()
@@ -121,6 +144,20 @@ def main(argv=None):
     except ValueError as erro:
         kit.die("new-artifact: %s" % erro, 1)
 
+    # Um artefato por gate (principio 7). Substituir um gate que ja tem
+    # artefato e uma decisao explicita, nunca um efeito colateral de criar
+    # outro: se o gate estava approved, criar por cima apagaria o registro da
+    # aprovacao humana (principio 4).
+    anterior = (state.get("gates") or {}).get(fase) or {}
+    if anterior.get("evidence") and not args.supersede:
+        kit.die("new-artifact: o gate %s ja tem artefato: %s (status %s).\n"
+                "Um artefato por gate. Para substituir, use --supersede, que "
+                "marca o anterior como superseded com link para o novo."
+                % (fase, anterior.get("evidence"), anterior.get("status")), 1)
+    if args.supersede and not anterior.get("evidence"):
+        kit.die("new-artifact: --supersede exige um artefato anterior no gate "
+                "%s, e nao ha nenhum." % fase, 1)
+
     destino = (Path(root) / "docs" / "areas" / args.area / fase
                / ("%s.md" % slugify(args.titulo)))
     if destino.exists():
@@ -131,6 +168,10 @@ def main(argv=None):
         monta_frontmatter(fase, args.area, args.titulo, args.owner, entradas)
         + corpo_do_template(modelo) + "\n", encoding="utf-8")
     rel = destino.relative_to(root).as_posix()
+
+    if args.supersede:
+        marca_superseded(root, str(anterior["evidence"]), rel)
+        print("Artefato anterior marcado superseded: %s" % anterior["evidence"])
 
     cria_readme_da_area(root, args.area, args.owner, state.get("tier"))
 

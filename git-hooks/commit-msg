@@ -43,8 +43,6 @@ def session_counter(root):
 
 
 def main():
-    if os.environ.get("PLK_SKIP_HOOKS"):
-        return 0
     argv = sys.argv[1:]
     if not argv:
         return 0
