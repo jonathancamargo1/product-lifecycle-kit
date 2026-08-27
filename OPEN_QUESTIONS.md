@@ -417,6 +417,15 @@ gates existentes, imprime as que faltam em ordem e monta a proxima acao pronta
 para copiar. O painel da area passou a listar as fases pendentes tambem, pelo
 mesmo motivo: por omissao, ele mentia.
 
+Consequencia aceita em projeto multi area: cada painel lista todas as fases
+obrigatorias do tier, inclusive as que aquela area ainda nao comecou, e o
+`Status geral` daquela area so fica `concluida` quando ela mesma fechou todas.
+Isso e ruido quando as areas dividem fases entre si de proposito, e e a
+resposta certa quando cada area e uma fatia de produto que percorre o ciclo
+inteiro. O kit assume a segunda leitura. Se a sua for a primeira, o painel vai
+parecer pessimista, e o `plan` tambem: os dois sao area cega, como o mapa de
+gates (Q2).
+
 Efeito: `bin/plan`, `bin/_kitlib.py` (`refresh_area_panels`),
 `docs/_process/session-protocol.md`, adaptador do Claude Code (`/plan`).
 

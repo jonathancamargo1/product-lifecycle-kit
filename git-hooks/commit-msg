@@ -93,10 +93,17 @@ def fase_para_codigo(root, mensagem):
                       capture_output=True).returncode != 0:
         return None
 
-    # Merge nao esta autorando codigo novo, esta juntando o que ja existe, e o
-    # diff em staging carrega tudo que vem do outro branch.
-    if (root / ".git" / "MERGE_HEAD").exists():
-        return None
+    # Merge, rebase, cherry-pick e revert nao estao autorando codigo novo:
+    # estao movendo commit que ja existe, e o staging carrega o diff inteiro.
+    # O git-dir vem do git porque em worktree ligada .git e arquivo, nao pasta.
+    gitdir = subprocess.run(["git", "rev-parse", "--absolute-git-dir"],
+                            cwd=str(root), capture_output=True, text=True)
+    if gitdir.returncode == 0 and gitdir.stdout.strip():
+        g = Path(gitdir.stdout.strip())
+        if any((g / nome).exists() for nome in
+               ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD",
+                "rebase-merge", "rebase-apply")):
+            return None
 
     # -z porque --name-only poe path nao ASCII entre aspas, e "docs/decisao.md"
     # com aspas deixa de casar com o prefixo docs/.

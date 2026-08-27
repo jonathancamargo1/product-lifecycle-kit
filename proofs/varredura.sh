@@ -9,8 +9,11 @@ cd "$KIT" || exit 1
 
 TRAVESSAO=$(python3 -c 'print(chr(0x2014), end="")')
 
-printf '$ grep -rn --exclude-dir=.git -e "<U+2014>" .\n'
-grep -rn --exclude-dir=.git -e "$TRAVESSAO" .
+# proofs/out guarda as saidas desta propria varredura: incluir seria o grep
+# lendo o que ele mesmo acabou de escrever.
+printf '$ grep -rn --exclude-dir=.git --exclude-dir=out -e "<U+2014>" .\n'
+grep -rn --exclude-dir=.git --exclude-dir=out --exclude-dir=__pycache__ \
+    -e "$TRAVESSAO" .
 printf 'EXIT: %d\n' "$?"
 
 printf '\n$ python3 varredura de codepoints em todos os arquivos versionados\n'

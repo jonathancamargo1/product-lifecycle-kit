@@ -548,9 +548,9 @@ testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 
 ````text
 $ python3 -m unittest discover bin/tests
-............................................................................................................................................................
+..............................................................................................................................................................
 ----------------------------------------------------------------------
-Ran 156 tests in 22.095s
+Ran 158 tests in 22.059s
 
 OK
 EXIT: 0
@@ -942,15 +942,15 @@ session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-322afce humano aprova o gate 17-ship
-fe857c3 sessao 04: 17-ship executei a fase 17-ship
-47d4f22 humano aprova o gate 14-review
-d02f2e6 sessao 03: 14-review executei a fase 14-review
-056dc1a humano aprova o gate 13-build-log
-3665e71 sessao 02: 13-build-log executei a fase 13-build
-894b4f5 humano aprova o gate 01-contexto
-0994115 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-a368166 instala o product-lifecycle-kit
+4fbf40b humano aprova o gate 17-ship
+7b91b1b sessao 04: 17-ship executei a fase 17-ship
+faa66a9 humano aprova o gate 14-review
+5b47165 sessao 03: 14-review executei a fase 14-review
+ec4e28d humano aprova o gate 13-build-log
+46a9f6c sessao 02: 13-build-log executei a fase 13-build
+e5a47a9 humano aprova o gate 01-contexto
+28871db sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+b0876f2 instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1119,7 +1119,7 @@ EXIT: 0
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main c4bca27] commit de codigo com a sessao aberta
+[main 1aac1a2] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1137,7 +1137,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-a32c726 humano aprova o gate 01-contexto
+45cbd42 humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1148,7 +1148,7 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main e8de8c7] corrige o artefato aprovado sob a decisao D-0001
+[main 1dc98c1] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
@@ -1163,7 +1163,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main 253a934] adiciona uma nota solta
+[main b180475] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1173,20 +1173,20 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-253a934 adiciona uma nota solta
-e8de8c7 corrige o artefato aprovado sob a decisao D-0001
-25a55dc sessao 06: 17-ship commit de codigo
-c4bca27 commit de codigo com a sessao aberta
-d130911 sessao 05: 17-ship trabalho da sessao 05
-e8be1fc humano aprova o gate 17-ship
-2a5e0ec sessao 04: 17-ship executei a fase 17-ship
-017b321 humano aprova o gate 14-review
-0712d0c sessao 03: 14-review executei a fase 14-review
-ad36500 humano aprova o gate 13-build-log
-4af7a22 sessao 02: 13-build-log executei a fase 13-build
-a32c726 humano aprova o gate 01-contexto
-650d022 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-f149b3a instala o product-lifecycle-kit
+b180475 adiciona uma nota solta
+1dc98c1 corrige o artefato aprovado sob a decisao D-0001
+0b5f14c sessao 06: 17-ship commit de codigo
+1aac1a2 commit de codigo com a sessao aberta
+91700e1 sessao 05: 17-ship trabalho da sessao 05
+f9f6d10 humano aprova o gate 17-ship
+62675f4 sessao 04: 17-ship executei a fase 17-ship
+2763d3c humano aprova o gate 14-review
+e430e39 sessao 03: 14-review executei a fase 14-review
+6e300fe humano aprova o gate 13-build-log
+5c06095 sessao 02: 13-build-log executei a fase 13-build
+45cbd42 humano aprova o gate 01-contexto
+bf424bf sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+b14dc95 instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1279,7 +1279,6 @@ EXIT: 0
 
 ----- 6. O kit real continua na versao de antes -----
 $ git -C /home/user/product-lifecycle-kit status --short VERSION CHANGELOG.md bin/_kitlib.py
- M bin/_kitlib.py
 EXIT: 0
 
 ----- 7. gate-check continua limpo depois do update -----
@@ -1328,8 +1327,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 6889 Aug 27 15:17 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 27 15:17 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 7345 Aug 27 15:31 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 27 15:31 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1447,7 +1446,7 @@ $ git commit -m corrige timeout do gateway
 
 Sem-fase: hotfix de producao, autorizado por Jonathan Camargo
 gate-check: nenhuma ocorrencia.
-[main 44048fe] corrige timeout do gateway
+[main 724d0c8] corrige timeout do gateway
  1 file changed, 1 insertion(+)
 EXIT: 0
 
@@ -1467,7 +1466,7 @@ $ python3 bin/lifecycle/gate-check
 gate-check: 0 erro(s), 1 aviso(s).
 EXIT: 0
 $ git log --grep ^Sem-fase: --oneline
-44048fe corrige timeout do gateway
+724d0c8 corrige timeout do gateway
 EXIT: 0
 ````
 
@@ -1509,7 +1508,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) be5346e] primeiro commit
+[main (root-commit) c0ce5cb] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 docs/nota.md
 EXIT: 0
@@ -1527,9 +1526,8 @@ a partir do codepoint U+2014. Se o escrevesse, o arquivo do scanner seria uma
 ocorrencia e a varredura acusaria a si mesma.
 
 ````text
-$ grep -rn --exclude-dir=.git -e "<U+2014>" .
-grep: ./proofs/out/varredura.out: input file is also the output
-EXIT: 2
+$ grep -rn --exclude-dir=.git --exclude-dir=out -e "<U+2014>" .
+EXIT: 1
 
 $ python3 varredura de codepoints em todos os arquivos versionados
 arquivos versionados verificados: 83

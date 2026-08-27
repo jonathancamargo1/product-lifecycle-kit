@@ -153,10 +153,20 @@ def main(argv=None):
         # o handoff e o que torna a falha recuperavel: sem isso, o trabalho fica
         # preso e so sai editando docs/STATE.md a mao.
         if not mesmo_arquivo:
-            destino.replace(origem)
+            # Reescreve em vez de renomear: o handoff costuma vir de /tmp, e
+            # rename entre filesystems levanta EXDEV justamente aqui, abortando
+            # o rollback que existe para evitar o beco sem saida.
+            try:
+                origem.write_text(texto, encoding="utf-8")
+                destino.unlink()
+            except OSError:
+                pass
         state["last_session"] = last_session_antes
         state["session_open"] = True
         kit.write_state(root, state)
+        # Desfaz o staging, senao o indice fica com a sessao fechada e um
+        # handoff que nao existe mais.
+        kit.git(root, "reset", "-q", "--", "docs")
         kit.die("session-close: o commit falhou, veja a saida acima. A sessao "
                 "continua aberta e o handoff intacto.", 1)
     print("Commit: %s" % mensagem)

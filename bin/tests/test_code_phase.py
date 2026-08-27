@@ -152,6 +152,23 @@ class TestBordas(KitTestCase):
         self.assertEqual(
             self.commit_msg("x\n\n# Sem-fase: isto e um comentario\n").returncode, 1)
 
+    def test_cherry_pick_e_revert_nao_sao_barrados(self):
+        """Movem commit que ja existe, nao estao autorando codigo novo."""
+        for marca in ("CHERRY_PICK_HEAD", "REVERT_HEAD"):
+            with self.subTest(marca=marca):
+                self.setUp()
+                self.git_init()
+                self._codigo()
+                (self.root / ".git" / marca).write_text("0" * 40 + "\n",
+                                                        encoding="utf-8")
+                self.assertEqual(self.commit_msg("move commit\n").returncode, 0)
+
+    def test_rebase_em_andamento_nao_e_barrado(self):
+        self.git_init()
+        self._codigo()
+        (self.root / ".git" / "rebase-merge").mkdir(parents=True, exist_ok=True)
+        self.assertEqual(self.commit_msg("continua o rebase\n").returncode, 0)
+
     def test_merge_nao_e_barrado(self):
         """Merge nao esta autorando codigo novo, esta juntando o que ja existe."""
         self.git_init()

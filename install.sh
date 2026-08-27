@@ -85,7 +85,10 @@ copia_atualizavel() {
     local origem="$1" rel="$2" destino="$ALVO/$2"
     if [ "$UPDATE" -eq 1 ] && customizado "$rel"; then
         REVISAR="$REVISAR$rel\n"
-        [ -f "$destino" ] && printf '%s  %s\n' "$(soma "$destino")" "$rel" >> "$MANIFESTO.novo"
+        # Guarda o hash do arquivo DO KIT, nao o do alvo customizado: gravar o
+        # customizado faria o proximo update concluir que ninguem mexeu, e
+        # sobrescrever a customizacao em silencio.
+        printf '%s  %s\n' "$(soma "$origem")" "$rel" >> "$MANIFESTO.novo"
         return 0
     fi
     mkdir -p "$(dirname "$destino")"
@@ -148,9 +151,10 @@ else
     elif [ -f "$ALVO/AGENTS.md" ]; then
         REVISAR="$REVISAR AGENTS.md (editado pelo projeto, regras novas nao entraram)\n"
     fi
-    for rel in docs/STATE.md AGENTS.md; do
-        [ -f "$ALVO/$rel" ] && printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
-    done
+    [ -f "$ALVO/docs/STATE.md" ] && printf '%s  %s\n' "$(soma "$ALVO/docs/STATE.md")" "docs/STATE.md" >> "$MANIFESTO.novo"
+    # Mesmo motivo do copia_atualizavel: o manifesto guarda o que o kit
+    # instalaria, para a customizacao continuar detectavel no proximo update.
+    [ -f "$ALVO/AGENTS.md" ] && printf '%s  %s\n' "$(soma "$KIT_DIR/docs/AGENTS.md")" "AGENTS.md" >> "$MANIFESTO.novo"
 fi
 
 # 3. scripts, sem os testes do kit
