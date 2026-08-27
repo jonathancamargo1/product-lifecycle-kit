@@ -3,8 +3,8 @@
 Kit reutilizavel para conduzir um produto de software da ideia a retrospectiva,
 sessao apos sessao, sem perder contexto e sem pular etapas.
 
-Ele vive num repositorio privado seu e e instalado em qualquer repositorio de
-projeto no momento em que o projeto comeca. Depois de instalado, o projeto pode
+Ele e publico e e instalado em qualquer repositorio de projeto no momento em
+que o projeto comeca. Depois de instalado, o projeto pode
 ser conduzido por Codex, por Claude Code, ou pelos dois em sessoes alternadas,
 com o mesmo estado, os mesmos gates e o mesmo protocolo.
 
@@ -34,8 +34,13 @@ correspondencia esta mais abaixo, e a prova de cada linha esta no modo B.
 Clone o kit uma vez, numa pasta fixa da maquina:
 
 ```sh
-git clone <url-do-seu-kit-privado> ~/product-lifecycle-kit
+git clone https://github.com/jonathancamargo1/product-lifecycle-kit ~/product-lifecycle-kit
 ```
+
+O kit e publico de proposito. Ele nao guarda nada de ninguem: e processo, e o
+processo so serve se o ambiente que precisa dele conseguir busca-lo sem
+credencial. Sandbox de agente, runner de CI e maquina de terceiro clonam
+anonimamente.
 
 Depois, em cada projeto novo:
 
@@ -66,24 +71,23 @@ tier: 2
 O caso mais comum: voce esta numa sessao aberta num projeto novo e quer o kit
 ali. O agente dessa sessao nao sabe onde o kit mora, e este README, que
 explicaria, esta dentro do kit que ele ainda nao tem. Entao seja explicito.
-Cole isto na sessao do projeto, trocando a URL pela do seu kit:
+Cole isto na sessao do projeto:
 
 ```
-Adicione o repositorio <owner>/product-lifecycle-kit ao escopo desta sessao,
-clone ele para /tmp/plk, e rode:
+Clone https://github.com/jonathancamargo1/product-lifecycle-kit
+para /tmp/plk e rode:
 
     /tmp/plk/install.sh . --adapters all
+
+O kit e publico, entao o clone nao precisa de credencial nem de anexar o
+repositorio ao escopo da sessao.
 
 Depois preencha project e tier em docs/STATE.md, commite a instalacao, e
 abra a primeira sessao com bin/lifecycle/session-open.
 ```
 
-Tres coisas que costumam travar:
+Duas coisas que costumam travar:
 
-- **O kit e um repositorio privado.** Uma sessao nova so enxerga o repositorio
-  em que foi aberta. Ela precisa anexar o do kit ao escopo antes de clonar, ou
-  o clone falha com "not found" mesmo que voce tenha acesso. Quando anexar nao
-  e possivel, veja a secao seguinte.
 - **`install.sh` nao adivinha o alvo.** O primeiro argumento e o repositorio de
   destino, e ele precisa ja ser um repositorio git. Rode de dentro do projeto,
   com `.` como alvo.
@@ -99,26 +103,30 @@ hooks. Nao toca em nenhum arquivo que ja existia, e lista no fim o que pulou.
 
 ## Instalar sem clonar o kit
 
-Todo o resto deste README pressupoe que quem instala consegue clonar o kit no
-mesmo ambiente onde o repositorio alvo esta. Essa premissa quebra em qualquer
-ambiente com acesso a repositorios escopado: sandbox de agente, runner de CI
-com token de um repositorio so, maquina sem rede.
+Com o kit publico, o clone resolve quase todo ambiente. Sobra o caso de quem
+nao tem rede para o GitHub: maquina isolada, runner sem egresso, rede que so
+libera hosts de uma lista.
 
 O `install.sh` nao precisa de clone nenhum. Ele nao le tag, nao roda
 `git describe` e nao inspeciona o proprio historico: a versao sai do arquivo
 `VERSION`, e todo `git` que ele executa aponta para o alvo. Quem precisa ser um
 repositorio git e o alvo, porque os hooks vao para o `.git/hooks` dele.
 
-Entao leve os arquivos do kit por qualquer meio, e rode o script de dentro da
-copia:
+Entao leve os arquivos por qualquer meio, e rode o script de dentro da copia:
 
 ```sh
 ./install.sh /caminho/do/repo-alvo --adapters all
 ```
 
 Qualquer transporte serve, porque nenhum deles e requisito: tarball, `rsync`,
-copia de pasta, volume montado, branch de vendor no proprio alvo. Numa maquina
-que ja tenha o clone, o tarball sai assim:
+copia de pasta, volume montado, branch de vendor no proprio alvo. Como o kit e
+publico, o tarball de uma versao baixa sem credencial nenhuma:
+
+```sh
+curl -L https://github.com/jonathancamargo1/product-lifecycle-kit/archive/refs/tags/v1.1.0.tar.gz | tar xz
+```
+
+Numa maquina que ja tenha o clone, o mesmo tarball sai offline:
 
 ```sh
 git -C ~/product-lifecycle-kit archive --format=tar.gz v1.1.0 > plk-1.1.0.tar.gz
@@ -135,11 +143,9 @@ O caminho do script pode ser absoluto e o diretorio corrente nao importa:
 `install.sh` resolve tudo a partir da propria localizacao. O que ele nunca
 adivinha e o alvo, que continua sendo o primeiro argumento.
 
-Uma ressalva, para nao vender o que nao entrega: se o seu kit e privado, anexar
-um tarball ao release nao resolve o caso de um ambiente sem credencial, porque
-baixar asset de release privado tambem exige token. Nesse cenario o transporte
-tem que ser um que o ambiente ja tenha, e nao um que dependa da mesma
-credencial que esta faltando.
+Se voce mantiver um fork privado do kit, essa aritmetica muda: transporte que
+depende de credencial (clone, asset de release) para de servir justamente no
+ambiente que nao tem credencial nenhuma, e sobra o transporte manual acima.
 
 ## Atualizar
 
@@ -609,7 +615,7 @@ testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 $ python3 -m unittest discover bin/tests
 ......................................................................................................................................................................................
 ----------------------------------------------------------------------
-Ran 182 tests in 41.431s
+Ran 182 tests in 39.220s
 
 OK
 EXIT: 0
@@ -1002,15 +1008,15 @@ session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-8c0dd1a humano aprova o gate 17-ship
-86e39c4 sessao 04: 17-ship executei a fase 17-ship
-c54bd6b humano aprova o gate 14-review
-0ace8fa sessao 03: 14-review executei a fase 14-review
-548fb6f humano aprova o gate 13-build-log
-fda6b6f sessao 02: 13-build-log executei a fase 13-build
-cde1476 humano aprova o gate 01-contexto
-bebc502 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-2a3aa93 instala o product-lifecycle-kit
+354fe34 humano aprova o gate 17-ship
+3dd3c75 sessao 04: 17-ship executei a fase 17-ship
+616a209 humano aprova o gate 14-review
+828254f sessao 03: 14-review executei a fase 14-review
+beab063 humano aprova o gate 13-build-log
+fcf4c12 sessao 02: 13-build-log executei a fase 13-build
+6af3193 humano aprova o gate 01-contexto
+c80a5de sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+a603c89 instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1181,7 +1187,7 @@ EXIT: 0
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main 76d5003] commit de codigo com a sessao aberta
+[main bdd83ee] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1199,7 +1205,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-ae65caa humano aprova o gate 01-contexto
+044b740 humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1210,7 +1216,7 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main cc158ef] corrige o artefato aprovado sob a decisao D-0001
+[main cbb047a] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
@@ -1225,7 +1231,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main 35e3baa] adiciona uma nota solta
+[main b0e45fc] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1235,20 +1241,20 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-35e3baa adiciona uma nota solta
-cc158ef corrige o artefato aprovado sob a decisao D-0001
-251cb3d sessao 06: 17-ship commit de codigo
-76d5003 commit de codigo com a sessao aberta
-2219108 sessao 05: 17-ship trabalho da sessao 05
-ba29852 humano aprova o gate 17-ship
-93698ac sessao 04: 17-ship executei a fase 17-ship
-606cf8a humano aprova o gate 14-review
-674d233 sessao 03: 14-review executei a fase 14-review
-c227918 humano aprova o gate 13-build-log
-2a8d886 sessao 02: 13-build-log executei a fase 13-build
-ae65caa humano aprova o gate 01-contexto
-059f204 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-789746b instala o product-lifecycle-kit
+b0e45fc adiciona uma nota solta
+cbb047a corrige o artefato aprovado sob a decisao D-0001
+33daa92 sessao 06: 17-ship commit de codigo
+bdd83ee commit de codigo com a sessao aberta
+36cc97b sessao 05: 17-ship trabalho da sessao 05
+7908e3e humano aprova o gate 17-ship
+87dea3f sessao 04: 17-ship executei a fase 17-ship
+8d3c17e humano aprova o gate 14-review
+1ee2467 sessao 03: 14-review executei a fase 14-review
+8dbc1c0 humano aprova o gate 13-build-log
+1088a6d sessao 02: 13-build-log executei a fase 13-build
+044b740 humano aprova o gate 01-contexto
+cbac640 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+4866ed6 instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1376,8 +1382,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 8692 Aug 27 22:24 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 27 22:24 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 8692 Aug 27 22:59 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 27 22:59 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1496,7 +1502,7 @@ $ git commit -m corrige timeout do gateway
 
 Sem-fase: hotfix de producao, autorizado por Jonathan Camargo
 gate-check: nenhuma ocorrencia.
-[main c7daad7] corrige timeout do gateway
+[main 99b502e] corrige timeout do gateway
  1 file changed, 1 insertion(+)
 EXIT: 0
 
@@ -1517,7 +1523,7 @@ $ python3 bin/lifecycle/gate-check
 gate-check: 0 erro(s), 1 aviso(s).
 EXIT: 0
 $ git log --grep ^Sem-fase: --oneline
-c7daad7 corrige timeout do gateway
+99b502e corrige timeout do gateway
 EXIT: 0
 ````
 
@@ -1559,7 +1565,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) 3af8e98] primeiro commit
+[main (root-commit) 71cc40a] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 docs/nota.md
 EXIT: 0
@@ -1604,13 +1610,17 @@ nenhuma
    lugar.
 3. Instale num projeto tier 2 em andamento, em modo reverso, e compare o
    `docs/STATE.md` gerado com o que voce acredita ser o estado real.
-4. Marque a tag `v1.0.0` no repositorio privado do kit. A partir dai, todo
-   projeto novo comeca com `install.sh` e todo projeto antigo recebe
-   `--update` quando o kit evoluir.
+4. Marque uma tag a cada versao. A partir dai, todo projeto novo comeca com
+   `install.sh` e todo projeto antigo recebe `--update` quando o kit evoluir.
 
 ## Escopo
 
-Kit privado, de uso interno. Nao ha promessa de compatibilidade entre majors: o
-`CHANGELOG.md` diz o que muda e `docs/KIT_VERSION` diz o que cada projeto tem
-instalado.
+Kit publico, sem promessa de suporte. Nao ha promessa de compatibilidade entre
+majors: o `CHANGELOG.md` diz o que muda e `docs/KIT_VERSION` diz o que cada
+projeto tem instalado. Ele foi escrito para um uso proprio e continua sendo
+mantido assim; se servir para voce, use.
+
+Todo o texto do kit, incluindo os 21 templates, esta em portugues do Brasil.
+Termos tecnicos ficam em ingles de proposito: PRD, ADR, backlog, rollback,
+feature flag, deploy, handoff, hook.
 

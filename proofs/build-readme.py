@@ -159,15 +159,19 @@ partes.append("""
    lugar.
 3. Instale num projeto tier 2 em andamento, em modo reverso, e compare o
    `docs/STATE.md` gerado com o que voce acredita ser o estado real.
-4. Marque a tag `v1.0.0` no repositorio privado do kit. A partir dai, todo
-   projeto novo comeca com `install.sh` e todo projeto antigo recebe
-   `--update` quando o kit evoluir.
+4. Marque uma tag a cada versao. A partir dai, todo projeto novo comeca com
+   `install.sh` e todo projeto antigo recebe `--update` quando o kit evoluir.
 
 ## Escopo
 
-Kit privado, de uso interno. Nao ha promessa de compatibilidade entre majors: o
-`CHANGELOG.md` diz o que muda e `docs/KIT_VERSION` diz o que cada projeto tem
-instalado.
+Kit publico, sem promessa de suporte. Nao ha promessa de compatibilidade entre
+majors: o `CHANGELOG.md` diz o que muda e `docs/KIT_VERSION` diz o que cada
+projeto tem instalado. Ele foi escrito para um uso proprio e continua sendo
+mantido assim; se servir para voce, use.
+
+Todo o texto do kit, incluindo os 21 templates, esta em portugues do Brasil.
+Termos tecnicos ficam em ingles de proposito: PRD, ADR, backlog, rollback,
+feature flag, deploy, handoff, hook.
 """)
 RAIZ = Path(__file__).resolve().parent.parent
 (RAIZ / "README.md").write_text("\n".join(partes) + "\n", encoding="utf-8")
