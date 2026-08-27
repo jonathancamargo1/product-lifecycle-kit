@@ -82,7 +82,8 @@ Tres coisas que costumam travar:
 
 - **O kit e um repositorio privado.** Uma sessao nova so enxerga o repositorio
   em que foi aberta. Ela precisa anexar o do kit ao escopo antes de clonar, ou
-  o clone falha com "not found" mesmo que voce tenha acesso.
+  o clone falha com "not found" mesmo que voce tenha acesso. Quando anexar nao
+  e possivel, veja a secao seguinte.
 - **`install.sh` nao adivinha o alvo.** O primeiro argumento e o repositorio de
   destino, e ele precisa ja ser um repositorio git. Rode de dentro do projeto,
   com `.` como alvo.
@@ -95,6 +96,50 @@ Tres coisas que costumam travar:
 O que a instalacao faz com um projeto que ja tem codigo: acrescenta
 `AGENTS.md`, `CLAUDE.md`, `.claude/`, `bin/lifecycle/`, `docs/` e os dois git
 hooks. Nao toca em nenhum arquivo que ja existia, e lista no fim o que pulou.
+
+## Instalar sem clonar o kit
+
+Todo o resto deste README pressupoe que quem instala consegue clonar o kit no
+mesmo ambiente onde o repositorio alvo esta. Essa premissa quebra em qualquer
+ambiente com acesso a repositorios escopado: sandbox de agente, runner de CI
+com token de um repositorio so, maquina sem rede.
+
+O `install.sh` nao precisa de clone nenhum. Ele nao le tag, nao roda
+`git describe` e nao inspeciona o proprio historico: a versao sai do arquivo
+`VERSION`, e todo `git` que ele executa aponta para o alvo. Quem precisa ser um
+repositorio git e o alvo, porque os hooks vao para o `.git/hooks` dele.
+
+Entao leve os arquivos do kit por qualquer meio, e rode o script de dentro da
+copia:
+
+```sh
+./install.sh /caminho/do/repo-alvo --adapters all
+```
+
+Qualquer transporte serve, porque nenhum deles e requisito: tarball, `rsync`,
+copia de pasta, volume montado, branch de vendor no proprio alvo. Numa maquina
+que ja tenha o clone, o tarball sai assim:
+
+```sh
+git -C ~/product-lifecycle-kit archive --format=tar.gz v1.1.0 > plk-1.1.0.tar.gz
+```
+
+E do outro lado:
+
+```sh
+mkdir -p /tmp/plk && tar -C /tmp/plk -xzf plk-1.1.0.tar.gz
+/tmp/plk/install.sh /caminho/do/repo-alvo --adapters all
+```
+
+O caminho do script pode ser absoluto e o diretorio corrente nao importa:
+`install.sh` resolve tudo a partir da propria localizacao. O que ele nunca
+adivinha e o alvo, que continua sendo o primeiro argumento.
+
+Uma ressalva, para nao vender o que nao entrega: se o seu kit e privado, anexar
+um tarball ao release nao resolve o caso de um ambiente sem credencial, porque
+baixar asset de release privado tambem exige token. Nesse cenario o transporte
+tem que ser um que o ambiente ja tenha, e nao um que dependa da mesma
+credencial que esta faltando.
 
 ## Atualizar
 
@@ -562,9 +607,9 @@ testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 
 ````text
 $ python3 -m unittest discover bin/tests
-.................................................................................................................................................................................
+......................................................................................................................................................................................
 ----------------------------------------------------------------------
-Ran 177 tests in 36.194s
+Ran 182 tests in 41.431s
 
 OK
 EXIT: 0
@@ -957,15 +1002,15 @@ session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-f57e0a2 humano aprova o gate 17-ship
-27bbcf0 sessao 04: 17-ship executei a fase 17-ship
-0b47b46 humano aprova o gate 14-review
-63cdcdb sessao 03: 14-review executei a fase 14-review
-730823d humano aprova o gate 13-build-log
-b1aa1ff sessao 02: 13-build-log executei a fase 13-build
-4bb59d2 humano aprova o gate 01-contexto
-cddab82 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-f800b03 instala o product-lifecycle-kit
+8c0dd1a humano aprova o gate 17-ship
+86e39c4 sessao 04: 17-ship executei a fase 17-ship
+c54bd6b humano aprova o gate 14-review
+0ace8fa sessao 03: 14-review executei a fase 14-review
+548fb6f humano aprova o gate 13-build-log
+fda6b6f sessao 02: 13-build-log executei a fase 13-build
+cde1476 humano aprova o gate 01-contexto
+bebc502 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+2a3aa93 instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1136,7 +1181,7 @@ EXIT: 0
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main 6e00490] commit de codigo com a sessao aberta
+[main 76d5003] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1154,7 +1199,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-c073c1a humano aprova o gate 01-contexto
+ae65caa humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1165,7 +1210,7 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main c9955d2] corrige o artefato aprovado sob a decisao D-0001
+[main cc158ef] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
@@ -1180,7 +1225,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main b3768c2] adiciona uma nota solta
+[main 35e3baa] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1190,20 +1235,20 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-b3768c2 adiciona uma nota solta
-c9955d2 corrige o artefato aprovado sob a decisao D-0001
-684fa56 sessao 06: 17-ship commit de codigo
-6e00490 commit de codigo com a sessao aberta
-7ff31a0 sessao 05: 17-ship trabalho da sessao 05
-dc515ac humano aprova o gate 17-ship
-ea034df sessao 04: 17-ship executei a fase 17-ship
-3197758 humano aprova o gate 14-review
-4852e14 sessao 03: 14-review executei a fase 14-review
-3b48a2c humano aprova o gate 13-build-log
-6a457cd sessao 02: 13-build-log executei a fase 13-build
-c073c1a humano aprova o gate 01-contexto
-9d71341 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-068a15e instala o product-lifecycle-kit
+35e3baa adiciona uma nota solta
+cc158ef corrige o artefato aprovado sob a decisao D-0001
+251cb3d sessao 06: 17-ship commit de codigo
+76d5003 commit de codigo com a sessao aberta
+2219108 sessao 05: 17-ship trabalho da sessao 05
+ba29852 humano aprova o gate 17-ship
+93698ac sessao 04: 17-ship executei a fase 17-ship
+606cf8a humano aprova o gate 14-review
+674d233 sessao 03: 14-review executei a fase 14-review
+c227918 humano aprova o gate 13-build-log
+2a8d886 sessao 02: 13-build-log executei a fase 13-build
+ae65caa humano aprova o gate 01-contexto
+059f204 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+789746b instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1331,8 +1376,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 8692 Aug 27 18:04 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 27 18:04 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 8692 Aug 27 22:24 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 27 22:24 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1451,7 +1496,7 @@ $ git commit -m corrige timeout do gateway
 
 Sem-fase: hotfix de producao, autorizado por Jonathan Camargo
 gate-check: nenhuma ocorrencia.
-[main 271d0a5] corrige timeout do gateway
+[main c7daad7] corrige timeout do gateway
  1 file changed, 1 insertion(+)
 EXIT: 0
 
@@ -1472,7 +1517,7 @@ $ python3 bin/lifecycle/gate-check
 gate-check: 0 erro(s), 1 aviso(s).
 EXIT: 0
 $ git log --grep ^Sem-fase: --oneline
-271d0a5 corrige timeout do gateway
+c7daad7 corrige timeout do gateway
 EXIT: 0
 ````
 
@@ -1514,7 +1559,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) b984d63] primeiro commit
+[main (root-commit) 3af8e98] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 docs/nota.md
 EXIT: 0

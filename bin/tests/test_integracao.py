@@ -155,3 +155,94 @@ class TestManifestoNaoLiberaCustomizacao(unittest.TestCase):
             self.manifesto().get("docs/_process/gates.md"),
             self.soma_do_kit("docs/_process/gates.md"),
             "manifesto liberou a troca de um arquivo de processo customizado")
+
+
+class TestInstalaSemCloneDoKit(unittest.TestCase):
+    """install.sh rodado de uma copia do kit sem .git.
+
+    O caminho documentado supoe que da para clonar o kit no mesmo ambiente do
+    alvo. Em sandbox de agente, runner de CI com token de um repositorio so ou
+    maquina sem rede, nao da. O script nunca dependeu de metadado git do
+    proprio kit, mas nada travava isso, entao uma linha como `git describe`
+    acrescentada no futuro quebraria esses ambientes sem nenhum teste acusar.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="plk-semclone-")
+        self.raiz = Path(self.tmp)
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+
+        # Copia do kit sem .git, como faria quem nao consegue clonar.
+        # A copia sai da ARVORE DE TRABALHO, nao de git archive HEAD: um
+        # arquivamento do HEAD testaria o codigo ja commitado, e a regressao
+        # que este teste existe para pegar so apareceria depois de commitada.
+        self.copia = self.raiz / "kit-copia"
+        shutil.copytree(KIT_ROOT, self.copia,
+                        ignore=shutil.ignore_patterns(".git", "__pycache__",
+                                                      "out"))
+        self.assertFalse((self.copia / ".git").exists(),
+                         "a copia do kit nao pode ter .git, senao o teste nao "
+                         "testa nada")
+
+        self.alvo = self.raiz / "alvo"
+        (self.alvo / "src").mkdir(parents=True)
+        (self.alvo / "src" / "app.py").write_text("print(1)\n", encoding="utf-8")
+        self.git("init", "-q", "-b", "main", ".")
+        self.git("config", "user.name", "Jonathan Camargo")
+        self.git("config", "user.email", "j@x")
+        self.git("add", "-A")
+        self.git("commit", "-q", "--no-verify", "-m", "projeto que ja existia")
+
+    def git(self, *args):
+        return subprocess.run(["git"] + list(args), cwd=str(self.alvo),
+                              capture_output=True, text=True)
+
+    def test_instala_de_uma_copia_sem_git(self):
+        saida = subprocess.run([str(self.copia / "install.sh"), str(self.alvo),
+                                "--adapters", "none"],
+                               cwd=str(self.copia), capture_output=True, text=True)
+        self.assertEqual(saida.returncode, 0, saida.stdout + saida.stderr)
+        self.assertEqual(
+            (self.alvo / "docs" / "KIT_VERSION").read_text(encoding="utf-8").strip(),
+            (KIT_ROOT / "VERSION").read_text(encoding="utf-8").strip())
+        for nome in ("pre-commit", "commit-msg"):
+            self.assertTrue((self.alvo / ".git" / "hooks" / nome).exists(),
+                            "%s nao foi instalado" % nome)
+
+    def test_caminho_absoluto_de_um_cwd_sem_relacao(self):
+        """KIT_DIR sai de BASH_SOURCE, nao do diretorio corrente."""
+        saida = subprocess.run([str(self.copia / "install.sh"), str(self.alvo),
+                                "--adapters", "none"],
+                               cwd=str(self.raiz), capture_output=True, text=True)
+        self.assertEqual(saida.returncode, 0, saida.stdout + saida.stderr)
+        self.assertTrue((self.alvo / "bin" / "lifecycle" / "gate-check").exists())
+
+    def test_o_alvo_instalado_aceita_commit(self):
+        """Instalar nao basta: o alvo tem que continuar commitavel depois."""
+        saida = subprocess.run([str(self.copia / "install.sh"), str(self.alvo),
+                                "--adapters", "none"],
+                               cwd=str(self.copia), capture_output=True, text=True)
+        self.assertEqual(saida.returncode, 0, saida.stdout + saida.stderr)
+        self.git("add", "-A")
+        commit = self.git("commit", "-m", "instala o product-lifecycle-kit")
+        self.assertEqual(commit.returncode, 0, commit.stdout + commit.stderr)
+
+    def test_copia_sem_VERSION_falha_em_vez_de_instalar_calada(self):
+        """Copia incompleta e o modo de falha comum de um transporte manual."""
+        (self.copia / "VERSION").unlink()
+        saida = subprocess.run([str(self.copia / "install.sh"), str(self.alvo),
+                                "--adapters", "none"],
+                               cwd=str(self.copia), capture_output=True, text=True)
+        self.assertNotEqual(saida.returncode, 0,
+                            "instalou sem saber a versao: " + saida.stdout)
+        self.assertIn("VERSION", saida.stderr)
+        self.assertFalse((self.alvo / "docs" / "KIT_VERSION").exists(),
+                         "carimbou uma versao em branco no alvo")
+
+    def test_o_kit_nao_versiona_workflows(self):
+        """Quem instala por branch de vendor herdaria os workflows do kit."""
+        versionados = subprocess.run(["git", "-C", str(KIT_ROOT), "ls-files",
+                                      ".github"], capture_output=True, text=True)
+        self.assertEqual(versionados.stdout.strip(), "",
+                         "o kit passou a versionar .github/; instalar por "
+                         "branch de vendor faria esses workflows rodarem no alvo")

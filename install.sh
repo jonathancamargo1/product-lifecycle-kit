@@ -38,7 +38,11 @@ ALVO="$(cd "$ALVO" && pwd)"
 [ -d "$ALVO/.git" ] || erro "$ALVO nao e um repositorio git. Rode git init antes."
 [ "$ALVO" != "$KIT_DIR" ] || erro "o alvo nao pode ser o proprio kit."
 
-VERSAO="$(cat "$KIT_DIR/VERSION")"
+VERSAO="$(cat "$KIT_DIR/VERSION" 2>/dev/null || true)"
+# Versao vazia instalava calada e carimbava docs/KIT_VERSION em branco, o que
+# faz o --update seguinte nao saber de onde esta vindo. Copia incompleta do
+# kit e o caso comum: falhar aqui e mais barato do que descobrir depois.
+[ -n "$VERSAO" ] || erro "nao consegui ler $KIT_DIR/VERSION. A copia do kit esta incompleta."
 MANIFESTO="$ALVO/docs/.kit-manifest"
 
 # ---------------------------------------------------------------- utilitarios
