@@ -269,9 +269,12 @@ else
     info "Instalacao concluida, mas gate-check saiu com $CODIGO. Veja acima."
 fi
 
-if [ "$UPDATE" -eq 0 ]; then
-    TIER_ATUAL="$(sed -n 's/^tier:[[:space:]]*\([^ #]*\).*/\1/p' "$ALVO/docs/STATE.md" | head -1)"
-    if [ "$TIER_ATUAL" = "null" ] || [ -z "$TIER_ATUAL" ]; then
+# Vale tambem no --update: um projeto que vem de uma versao antiga do kit pode
+# nunca ter declarado o tier, e a partir do ST-05 todos os commits dele passam
+# a ser recusados pelo pre-commit. Ficar calado justamente ai seria o pior.
+TIER_ATUAL="$(sed -n 's/^tier:[[:space:]]*\([^ #]*\).*/\1/p' "$ALVO/docs/STATE.md" | head -1)"
+if [ "$TIER_ATUAL" = "null" ] || [ -z "$TIER_ATUAL" ]; then
+    if true; then
         info ""
         info "PROXIMOS PASSOS, nesta ordem:"
         info ""

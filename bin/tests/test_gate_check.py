@@ -330,6 +330,13 @@ class TestTierDeclarado(GateCheckBase):
         self._com_gate(9)
         self.assertCode(self.check(), "ST-05")
 
+    def test_st05_falha_com_tier_booleano(self):
+        """int(True) e 1: sem guarda, tier: true rodaria como tier 1."""
+        for valor in (True, False):
+            with self.subTest(valor=valor):
+                self._com_gate(valor)
+                self.assertCode(self.check(), "ST-05")
+
     def test_st05_passa_com_tier_declarado(self):
         self._com_gate(1)
         self.assertNoCode(self.check(), "ST-05")

@@ -25,7 +25,7 @@ JSON
 mostra cat .git/hooks/pre-commit
 
 printf -- '\n----- 2. Instalacao -----\n'
-"$KIT/install.sh" . --adapters all 2>&1 | grep -i "encadeado\|mesclad\|preservad\|gate-check"
+"$KIT/install.sh" . --adapters all 2>&1 | grep -iE "encadeado|mesclad|preservad|gate-check:"
 
 printf -- '\n----- 3. O hook do projeto foi preservado, nao sobrescrito -----\n'
 mostra cat .git/hooks/pre-commit.local
