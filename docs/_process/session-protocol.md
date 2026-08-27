@@ -67,6 +67,17 @@ Handoff longo nao e lido. O proximo agente precisa de tres coisas: o que
 mudou, o que ficou pendente, e onde estao as minas. Todo o resto esta nos
 artefatos e no `docs/STATE.md`.
 
+## Onde estou e o que falta
+
+```
+bin/lifecycle/plan
+```
+
+Compara as fases obrigatorias do tier com os gates que existem e imprime as
+que faltam, em ordem, com a proxima acao pronta para copiar. E o unico lugar
+que mostra o buraco: o painel da area lista o que existe, e o `gate-check`
+verifica o que existe. Nenhum dos dois sabe dizer o que nunca foi comecado.
+
 ## Duvida de negocio
 
 Nunca vira suposicao. Vira `open_question` em `docs/STATE.md`, com id,

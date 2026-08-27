@@ -112,6 +112,16 @@ com `gate-check` exit 0 e os dois git hooks instalados. E o caso que prova o
 principio 12, o de que o nucleo nao depende de agente nenhum. Repare tambem no
 aviso impresso no fim: sem `tier` declarado o kit nao sabe o que exigir, e diz
 isso em vez de deixar passar.""", "prova-none.out"),
+    ("### Codigo entra a partir da fase 13", """`proofs/fase-para-codigo.sh`. Instala num repositorio que ja tem codigo,
+declara tier 2, e tenta subir uma feature sem nenhuma fase comecada.
+
+Demonstra: o `plan` mostrando as 12 fases pendentes (2); a recusa do
+`commit-msg` com os arquivos e o custo na tela (3); o caminho recomendado
+funcionando (4); a recusa continuando de pe na fase 01, porque codigo e
+esperado da 13 em diante (5); a autorizacao explicita do humano deixando o
+commit passar (6); a autorizacao sem motivo sendo recusada (7); e a divida
+aparecendo no `gate-check` como `PH-01` com o rastro permanente no git log
+(8).""", "fase-para-codigo.out"),
     ("### Encadeamento de hooks e merge de settings", """`proofs/encadeamento.sh`. A secao 13 exige que `install.sh` encadeie um hook de
 git que ja exista, em vez de sobrescrever, e que mescle os hooks num
 `.claude/settings.json` do projeto sem remover os que ja estavam la. Esta prova

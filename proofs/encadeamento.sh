@@ -41,6 +41,8 @@ for evento, entradas in d['hooks'].items():
             print('%-14s %s' % (evento, h['command']))"
 
 printf -- '\n----- 5. Num commit real, os dois rodam, o do projeto primeiro -----\n'
-echo teste > a.txt
-git add a.txt
+# Arquivo sob docs/ de proposito: a regra de fase para codigo tem prova
+# propria em proofs/fase-para-codigo.sh, e aqui o assunto e o encadeamento.
+echo "nota do projeto" > docs/nota.md
+git add docs/nota.md
 mostra git commit -m "primeiro commit"

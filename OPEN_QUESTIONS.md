@@ -403,3 +403,56 @@ alguem tente de novo sem resolver Q2 antes.
 
 Efeito: `bin/gate-check`, `bin/new-artifact`, `install.sh`,
 `bin/tests/test_gate_check.py`, `bin/tests/test_new_artifact.py`.
+
+## Q28. `bin/plan`, e por que o painel nao bastava
+
+A especificacao nao pede um comando de plano. Na pratica faltava: o painel da
+area lista o que existe, e o `gate-check` verifica o que existe. Nenhum dos
+dois sabe dizer o que nunca foi comecado. Num projeto tier 2 com uma unica
+fase criada, o painel mostrava uma linha e o `gate-check` saia 0, entao um
+projeto com 11 de 12 fases faltando parecia completo.
+
+Interpretacao adotada: `bin/plan` compara as fases obrigatorias do tier com os
+gates existentes, imprime as que faltam em ordem e monta a proxima acao pronta
+para copiar. O painel da area passou a listar as fases pendentes tambem, pelo
+mesmo motivo: por omissao, ele mentia.
+
+Efeito: `bin/plan`, `bin/_kitlib.py` (`refresh_area_panels`),
+`docs/_process/session-protocol.md`, adaptador do Claude Code (`/plan`).
+
+## Q29. Codigo entrando sem fase de build
+
+Medido antes de existir a regra: um agente commitava feature atras de feature
+sem nunca rodar `session-open` nem criar artefato, e o `gate-check` respondia
+"nenhuma ocorrencia", exit 0. O kit garantia integridade e ordem de quem
+estava usando, e nada sobre alguma fase acontecer.
+
+Interpretacao adotada, decidida com o dono do kit: **nao** e bloqueio
+automatico. Commit que toca codigo do produto exige a fase corrente ser
+`13-build-log` ou posterior; fora disso o `commit-msg` recusa, nomeia os
+arquivos, e diz o que se perde (codigo sem spec, sem review de papel distinto,
+sem rastro da decisao que o originou).
+
+A saida exige ato deliberado: a linha `Sem-fase: <motivo, e quem autorizou>`
+no proprio commit. Tres consequencias de desenho:
+
+- Quem autoriza e humano. `AGENTS.md` proibe o agente de escrever o trailer
+  por conta propria, com a analogia direta: autorizar a si mesmo e o mesmo que
+  aprovar o proprio gate.
+- A autorizacao fica no historico do git para sempre, nao num arquivo que
+  alguem limpa depois.
+- `gate-check` conta quantas existem (`PH-01`, aviso) e mostra em toda sessao,
+  porque `session-open` roda o `gate-check`. A divida nao some de vista.
+
+O limite que fica, e nenhum hook fecha: o trailer e texto de commit, entao um
+agente que decida mentir consegue escreve-lo sozinho. E o mesmo teto do
+`git commit --no-verify` (Q23). O kit torna o desvio caro, visivel e
+permanente; nao torna impossivel.
+
+A partir de que fase codigo e legitimo esta em `_kitlib.CODE_PHASE_FROM`, hoje
+13. O SQ-01 garante que tudo que o tier exige antes da 13 ja esta aprovado
+quando ela abre, entao exigir a 13 e o mesmo que exigir o PRD, a spec e o
+backlog nos tiers que os tem.
+
+Efeito: `git-hooks/commit-msg`, `bin/gate-check` (PH-01), `bin/_kitlib.py`,
+`docs/AGENTS.md`, `docs/_process/lifecycle.md`.

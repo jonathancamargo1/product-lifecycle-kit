@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""plan: o que falta para fechar o tier, e qual e a proxima acao.
+
+Uso:
+  plan            tabela do tier, fase a fase, com o que falta
+  plan --json     a mesma coisa em JSON
+
+O painel da area mostra o que existe. Este comando mostra o buraco: as fases
+que o tier exige e que ainda nao tem artefato nenhum. Sem ele, um projeto pela
+metade parece completo, porque so o que existe aparece em algum lugar.
+"""
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _kitlib as kit
+
+PENDENTE = "pendente"
+FECHADO = ("approved", "superseded")
+
+
+def levantamento(root, state):
+    obrigatorias = kit.required_phases(state.get("tier"))
+    gates = state.get("gates") or {}
+    fases = []
+    for slug in obrigatorias:
+        gate = gates.get(slug) or {}
+        fases.append({
+            "slug": slug,
+            "status": gate.get("status") or PENDENTE,
+            "evidence": gate.get("evidence"),
+            "by": gate.get("by"),
+            "date": gate.get("date"),
+        })
+    return fases
+
+
+def proxima(fases):
+    """Primeira fase que ainda nao esta fechada."""
+    for fase in fases:
+        if fase["status"] not in FECHADO:
+            return fase
+    return None
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--json", action="store_true", dest="as_json")
+    args = parser.parse_args(argv)
+
+    root = kit.repo_root()
+    try:
+        state = kit.read_state(root)
+    except ValueError as erro:
+        kit.die("plan: %s" % erro, 1)
+
+    if kit.required_phases(state.get("tier")) is None:
+        kit.die("plan: tier nao declarado em docs/STATE.md (esta %r). Sem tier "
+                "o kit nao sabe quais fases exigir. Preencha tier: 1, 2 ou 3. "
+                "Ver docs/_process/tiers.md." % state.get("tier"), 1)
+
+    fases = levantamento(root, state)
+    faltam = [f for f in fases if f["status"] not in FECHADO]
+    seguinte = proxima(fases)
+    area = state.get("current_area") or "<area>"
+
+    if args.as_json:
+        print(json.dumps({
+            "project": state.get("project"),
+            "tier": state.get("tier"),
+            "fases": fases,
+            "faltam": len(faltam),
+            "total": len(fases),
+            "proxima": seguinte["slug"] if seguinte else None,
+        }, ensure_ascii=False, indent=2))
+        return 0
+
+    print("Projeto: %s" % (state.get("project") or "(sem nome)"))
+    print("Tier %s: %d fases obrigatorias, faltam %d de %d."
+          % (state.get("tier"), len(fases), len(faltam), len(fases)))
+    print()
+    largura = max(len(f["slug"]) for f in fases)
+    for fase in fases:
+        marca = " " if fase["status"] in FECHADO else ">"
+        print("%s %-*s  %-12s %s" % (marca, largura, fase["slug"], fase["status"],
+                                     fase["evidence"] or ""))
+    print()
+    if seguinte is None:
+        print("Todas as fases obrigatorias do tier estao fechadas.")
+        return 0
+
+    if seguinte["status"] == PENDENTE:
+        print("Proxima acao: criar o artefato da fase %s." % seguinte["slug"])
+        entradas = ""
+        anteriores = [f for f in fases
+                      if f["evidence"] and kit.phase_number(f["slug"])
+                      < kit.phase_number(seguinte["slug"])]
+        if anteriores and seguinte["slug"] not in kit.PHASES_SEM_INPUTS:
+            entradas = " --inputs %s" % anteriores[-1]["evidence"]
+        print('  bin/lifecycle/new-artifact %s %s "<titulo>" --owner "<nome>"%s'
+              % (seguinte["slug"], area, entradas))
+    else:
+        print("Proxima acao: fechar a fase %s, hoje em %s."
+              % (seguinte["slug"], seguinte["status"]))
+        if seguinte["status"] in ("draft", "in_progress"):
+            print("  preencha %s e marque status: proposed."
+                  % (seguinte["evidence"] or "o artefato"))
+        else:
+            print("  um humano aprova editando o frontmatter de %s e o gate em "
+                  "docs/STATE.md." % (seguinte["evidence"] or "o artefato"))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

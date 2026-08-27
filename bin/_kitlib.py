@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-KIT_VERSION = "1.0.0"
+KIT_VERSION = "1.1.0"
 
 PHASES = [
     "01-contexto", "02-discovery", "03-csd", "04-personas-jornada", "05-prd",
@@ -32,6 +32,42 @@ TIER_PHASES = {
 }
 
 PHASES_SEM_INPUTS = ("01-contexto", "02-discovery")
+
+# A partir da fase 13 (build) commit de codigo e o trabalho esperado. Antes
+# dela, codigo entrando no repositorio quer dizer que se comecou a construir
+# sem spec e sem review, e o SQ-01 garante que tudo antes da 13 ja foi
+# aprovado. Depois dela (review, ship) codigo continua legitimo.
+CODE_PHASE_FROM = 13
+
+# Caminhos que sao do kit ou do processo, nao do produto.
+NON_CODE_PREFIXES = ("docs/", ".claude/", "bin/lifecycle/", "proofs/")
+NON_CODE_FILES = ("AGENTS.md", "CLAUDE.md", ".gitignore")
+CODE_TRAILER = "Sem-fase:"
+
+
+def is_code_path(rel_path):
+    if rel_path in NON_CODE_FILES:
+        return False
+    return not any(rel_path.startswith(p) for p in NON_CODE_PREFIXES)
+
+
+def code_phase_open(state):
+    """True se a fase corrente autoriza commit de codigo."""
+    fase = state.get("current_phase")
+    if not fase:
+        return False
+    try:
+        return phase_number(resolve_phase(str(fase))) >= CODE_PHASE_FROM
+    except (ValueError, IndexError):
+        return False
+
+
+def commits_sem_fase(root):
+    """Quantos commits do historico carregam o trailer de autorizacao."""
+    resultado = git(root, "log", "--grep", "^%s" % CODE_TRAILER, "--oneline")
+    if resultado.returncode != 0:
+        return 0
+    return len([l for l in resultado.stdout.splitlines() if l.strip()])
 
 ARTIFACT_STATUSES = ("draft", "review", "proposed", "approved", "superseded")
 GATE_STATUSES = ("in_progress", "proposed", "approved", "superseded")
@@ -551,7 +587,16 @@ def refresh_area_panels(root, state):
         while fim < len(linhas) and linhas[fim].startswith("|"):
             fim += 1
         novas = [PANEL_HEADER, "|---|---|---|---|---|---|"]
-        for slug, gate in sorted(por_area.get(area, [])):
+        presentes = dict(por_area.get(area, []))
+        # As fases que faltam entram como pendente. Sem elas o painel mente por
+        # omissao: um projeto pela metade parece completo, porque so o que
+        # existe aparece na tabela.
+        ordem = obrigatorias if obrigatorias is not None else sorted(presentes)
+        for slug in ordem:
+            gate = presentes.get(slug)
+            if gate is None:
+                novas.append("| %s | | pendente | | | |" % slug)
+                continue
             evidencia = str(gate.get("evidence") or "")
             fields, _ = read_frontmatter(Path(root) / evidencia)
             titulo = (fields or {}).get("title") or ""

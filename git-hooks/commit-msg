@@ -28,6 +28,79 @@ def encadeia(root, argv):
             raise SystemExit(resultado.returncode)
 
 
+def carrega_kit(root):
+    for dirname in ("bin/lifecycle", "bin"):
+        lib = root / dirname / "_kitlib.py"
+        if lib.exists():
+            sys.path.insert(0, str(root / dirname))
+            import _kitlib
+            return _kitlib
+    return None
+
+
+def fase_para_codigo(root, mensagem):
+    """None se pode commitar, ou o texto da recusa.
+
+    Nao e bloqueio automatico: a recusa diz o que se perde e como prosseguir.
+    Quem prossegue deixa a autorizacao registrada no proprio commit, para
+    sempre, em vez de o desvio sumir em silencio.
+    """
+    kit = carrega_kit(root)
+    if kit is None:
+        return None
+    try:
+        state = kit.read_state(root)
+    except (ValueError, TypeError):
+        return None
+
+    resultado = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMRT"],
+        cwd=str(root), capture_output=True, text=True)
+    if resultado.returncode != 0:
+        return None
+    codigo = [l.strip() for l in resultado.stdout.splitlines()
+              if l.strip() and kit.is_code_path(l.strip())]
+    if not codigo:
+        return None
+    if kit.code_phase_open(state):
+        return None
+
+    for linha in mensagem.splitlines():
+        if linha.strip().startswith(kit.CODE_TRAILER):
+            motivo = linha.split(":", 1)[1].strip()
+            if motivo:
+                return None
+            return ("commit-msg: %s esta vazio. A autorizacao precisa de motivo:\n"
+                    "  %s <por que este codigo entra sem fase, e quem autorizou>\n"
+                    % (kit.CODE_TRAILER, kit.CODE_TRAILER))
+
+    fase = state.get("current_phase") or "nenhuma"
+    exemplo = codigo[0] if len(codigo) == 1 else "%s e mais %d" % (codigo[0],
+                                                                  len(codigo) - 1)
+    return (
+        "commit-msg: codigo entrando sem fase de build aberta.\n"
+        "\n"
+        "  arquivos: %s\n"
+        "  fase corrente: %s (codigo e esperado da 13-build-log em diante)\n"
+        "\n"
+        "O que se perde ao seguir assim: este codigo nao tem spec que o "
+        "descreva,\nnao passa por review de papel distinto do executor, e nao "
+        "deixa rastro\nde qual decisao de produto o originou. Daqui a tres "
+        "meses ninguem sabe\npor que ele existe.\n"
+        "\n"
+        "O caminho recomendado:\n"
+        "  bin/lifecycle/plan                 ve o que falta\n"
+        "  bin/lifecycle/new-artifact 13-build <area> \"<titulo>\" --owner <nome> "
+        "--inputs <path>\n"
+        "\n"
+        "Se mesmo assim este commit precisa entrar agora, pergunte ao humano e\n"
+        "registre a resposta dele no proprio commit:\n"
+        "  %s <por que entra sem fase, e quem autorizou>\n"
+        "\n"
+        "Nunca escreva esse trailer por conta propria. Ver AGENTS.md.\n"
+        % (exemplo, fase, kit.CODE_TRAILER))
+
+
 def session_counter(root):
     for dirname in ("bin/lifecycle", "bin"):
         lib = root / dirname / "_kitlib.py"
@@ -54,6 +127,11 @@ def main():
         mensagem = caminho.read_text(encoding="utf-8")
     except OSError:
         return 0
+    recusa = fase_para_codigo(root, mensagem)
+    if recusa:
+        sys.stderr.write(recusa)
+        return 1
+
     primeira = mensagem.splitlines()[0] if mensagem.splitlines() else ""
     if not primeira.startswith("sessao "):
         return 0

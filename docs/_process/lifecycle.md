@@ -42,6 +42,21 @@ alguma fase obrigatoria anterior, pelo tier declarado, ainda nao esta
 aprovada (codigo SQ-01). Fase nao obrigatoria pelo tier e ignorada por
 completo: nao aparece no painel da area e nao bloqueia nada.
 
+## Codigo entra a partir da fase 13
+
+Commit que toca codigo do produto exige a fase corrente ser `13-build-log` ou
+posterior. O `commit-msg` recusa fora disso, com a lista dos arquivos e o que
+se perde: codigo sem spec que o descreva, sem review de papel distinto do
+executor, e sem rastro da decisao de produto que o originou.
+
+Nao e bloqueio automatico. E recusa com o custo na tela e um caminho de saida
+que exige ato deliberado: a linha `Sem-fase: <motivo, e quem autorizou>` no
+proprio commit. Quem autoriza e humano, o agente pergunta. A autorizacao fica
+no historico do git para sempre, e o `gate-check` conta quantas existem
+(codigo `PH-01`, aviso), para a divida nao sumir de vista.
+
+Rode `bin/lifecycle/plan` para ver o que falta ate a fase de build.
+
 ## Modo reverso
 
 Quando o kit e instalado num projeto em andamento, as fases ja vencidas sao

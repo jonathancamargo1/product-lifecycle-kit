@@ -145,7 +145,7 @@ else
 fi
 
 # 3. scripts, sem os testes do kit
-for script in gate-check new-artifact session-open session-close guard-write \
+for script in gate-check new-artifact session-open session-close guard-write plan \
               guard-commit decide _kitlib.py; do
     rel="bin/lifecycle/$script"
     if [ "$UPDATE" -eq 1 ]; then

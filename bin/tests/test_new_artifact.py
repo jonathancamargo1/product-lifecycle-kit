@@ -161,6 +161,23 @@ class TestNewArtifact(KitTestCase):
         self.assertIn("tier", (result.stdout + result.stderr).lower())
         self.assertFalse((self.root / "docs" / "areas" / "nucleo").exists())
 
+    def test_painel_lista_as_fases_que_faltam(self):
+        """O painel mentia por omissao: so mostrava o que existia."""
+        self.novo("01-contexto", "nucleo", "Contexto", "--owner", "Jonathan Camargo")
+        painel = (self.root / "docs" / "areas" / "nucleo" / "README.md").read_text(
+            encoding="utf-8")
+        for slug in ("13-build-log", "14-review", "17-ship"):
+            self.assertIn(slug, painel, "fase que falta nao aparece no painel")
+        self.assertIn("pendente", painel)
+        self.assertIn("01-contexto", painel)
+
+    def test_painel_nao_lista_fase_fora_do_tier(self):
+        self.novo("01-contexto", "nucleo", "Contexto", "--owner", "Jonathan Camargo")
+        painel = (self.root / "docs" / "areas" / "nucleo" / "README.md").read_text(
+            encoding="utf-8")
+        self.assertNotIn("05-prd", painel)
+        self.assertNotIn("20-retro", painel)
+
     def test_o_resultado_passa_no_gate_check(self):
         self.novo("01-contexto", "onboarding", "Contexto", "--owner", "Jonathan Camargo")
         result = self.run_script("gate-check")
