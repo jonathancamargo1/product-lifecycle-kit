@@ -20,7 +20,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _kitlib as kit
 
 PENDENTE = "pendente"
-FECHADO = ("approved", "superseded")
+# SQ-01 exige approved. Contar superseded como fechado faria o plan
+# sugerir uma fase que o gate-check recusaria em seguida.
+FECHADO = ("approved",)
 
 
 def levantamento(root, state):

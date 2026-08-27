@@ -193,6 +193,19 @@ class TestNewArtifact(KitTestCase):
                       "o painel da areaA perdeu o artefato dela: %s" % linha)
         self.assertNotIn("pendente", linha)
 
+    def test_painel_usa_o_mesmo_vocabulario_de_status_nas_duas_areas(self):
+        """Coluna Status nao pode misturar status de gate com o do frontmatter."""
+        self.novo("01-contexto", "areaA", "Contexto A", "--owner", "Jonathan Camargo")
+        self.novo("01-contexto", "areaB", "Contexto B", "--owner", "Ana Souza")
+        def status_de(area):
+            painel = (self.root / "docs" / "areas" / area / "README.md").read_text(
+                encoding="utf-8")
+            linha = [l for l in painel.splitlines() if l.startswith("| 01-contexto")][0]
+            return linha.split("|")[3].strip()
+        self.assertEqual(status_de("areaA"), status_de("areaB"),
+                         "as duas areas acabaram de criar a fase 01 e mostram "
+                         "status diferentes")
+
     def test_o_resultado_passa_no_gate_check(self):
         self.novo("01-contexto", "onboarding", "Contexto", "--owner", "Jonathan Camargo")
         result = self.run_script("gate-check")

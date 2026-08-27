@@ -611,8 +611,11 @@ def refresh_area_panels(root, state):
             if vivo is None:
                 continue
             artefato, fields = vivo
+            # Traduz para o vocabulario dos gates: a outra metade da tabela
+            # vem do STATE.md, e as duas nao podem falar linguas diferentes.
+            bruto = fields.get("status") or ""
             presentes[pasta.name] = {
-                "status": fields.get("status") or "",
+                "status": "in_progress" if bruto in ("draft", "review") else bruto,
                 "evidence": artefato.relative_to(root).as_posix(),
                 "by": fields.get("approved_by"),
                 "date": fields.get("approved_at"),
@@ -731,10 +734,17 @@ def last_modified(root, rel_path):
 
 
 def head_content(root, rel_path):
-    resultado = git(root, "show", "HEAD:%s" % rel_path)
+    # Sem text=True: um arquivo binario em staging (um .pyc, por exemplo)
+    # levantaria UnicodeDecodeError e derrubaria o hook inteiro.
+    resultado = subprocess.run(["git", "show", "HEAD:%s" % rel_path],
+                               cwd=str(root), capture_output=True)
     if resultado.returncode != 0:
         return None
-    return resultado.stdout
+    try:
+        return resultado.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        # Binario nao tem frontmatter, entao nao e artefato nem ADR.
+        return ""
 
 
 def staged_files(root):

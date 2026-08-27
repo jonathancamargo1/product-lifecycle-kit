@@ -166,17 +166,27 @@ for script in gate-check new-artifact session-open session-close guard-write pla
         cp "$KIT_DIR/bin/$script" "$ALVO/$rel"
         printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
     else
-        # Script do kit que ja existe e nao foi customizado e reenviado: hook
-        # novo com _kitlib antigo quebra todo commit do projeto.
-        if [ -f "$ALVO/$rel" ] && ! customizado "$rel"; then
-            cp "$KIT_DIR/bin/$script" "$ALVO/$rel"
-            printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
-        else
-            copia "$KIT_DIR/bin/$script" "$rel"
-        fi
+        # bin/lifecycle e territorio do kit, como docs/_process: script dali e
+        # sempre realinhado. Preservar um _kitlib.py antigo junto com hooks
+        # novos quebra todo commit do projeto, e um manifesto ausente ou
+        # desatualizado nao pode deixar o projeto nesse estado.
+        mkdir -p "$ALVO/bin/lifecycle"
+        cp "$KIT_DIR/bin/$script" "$ALVO/$rel"
+        printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
     fi
     [ "$script" = "_kitlib.py" ] || chmod +x "$ALVO/$rel" 2>/dev/null || true
 done
+
+# 3b. bytecode do python nunca deve ser versionado no alvo: um .pyc de
+# bin/lifecycle rastreado derruba o guard-commit no commit seguinte.
+if ! grep -qx "__pycache__/" "$ALVO/.gitignore" 2>/dev/null; then
+    printf '__pycache__/\n*.pyc\n' >> "$ALVO/.gitignore"
+    info "  __pycache__ adicionado ao .gitignore do alvo"
+fi
+if git -C "$ALVO" ls-files --error-unmatch 'bin/lifecycle/__pycache__' >/dev/null 2>&1; then
+    git -C "$ALVO" rm -r --cached -q bin/lifecycle/__pycache__ 2>/dev/null || true
+    info "  __pycache__ que estava versionado foi retirado do indice"
+fi
 
 # 4. git hooks: sempre reinstalados, sempre encadeando
 instala_hook pre-commit

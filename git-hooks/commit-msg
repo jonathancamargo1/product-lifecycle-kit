@@ -47,8 +47,19 @@ def _trailers(mensagem, marca):
     return [l for l in corpo_da_mensagem(mensagem) if l.strip().startswith(marca)]
 
 
+PLACEHOLDER = "por que entra sem fase"
+
+
 def autorizado(mensagem, marca):
-    return any(l.split(":", 1)[1].strip() for l in _trailers(mensagem, marca))
+    for linha in _trailers(mensagem, marca):
+        motivo = linha.split(":", 1)[1].strip()
+        if not motivo:
+            continue
+        # A linha sugerida pela propria recusa nao e autorizacao de ninguem.
+        if PLACEHOLDER in motivo.lower():
+            continue
+        return True
+    return False
 
 
 def trailer_vazio(mensagem, marca):
@@ -56,6 +67,10 @@ def trailer_vazio(mensagem, marca):
 
 
 def carrega_kit(root):
+    # Sem isto o hook deixa __pycache__ dentro do projeto alvo a cada commit.
+    # A instalacao manda rodar git add -A, entao o .pyc acaba versionado, e um
+    # commit posterior que o reencene derruba o guard-commit.
+    sys.dont_write_bytecode = True
     for dirname in ("bin/lifecycle", "bin"):
         lib = root / dirname / "_kitlib.py"
         if lib.exists():

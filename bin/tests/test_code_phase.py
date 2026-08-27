@@ -239,6 +239,54 @@ class TestNaoCodigo(KitTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
 
+class TestHigieneDoHook(KitTestCase):
+    def commit_msg(self, mensagem):
+        (self.root / "MSG").write_text(mensagem, encoding="utf-8")
+        return subprocess.run(
+            [sys.executable, str(KIT_ROOT / "git-hooks" / "commit-msg"), "MSG"],
+            cwd=str(self.root), capture_output=True, text=True)
+
+    def test_hook_nao_escreve_pycache_no_projeto(self):
+        """__pycache__ versionado no alvo mata o pre-commit depois."""
+        self.git_init()
+        import shutil
+        shutil.rmtree(self.root / "bin" / "lifecycle" / "__pycache__",
+                      ignore_errors=True)
+        self.commit_msg("qualquer coisa\n")
+        self.assertFalse((self.root / "bin" / "lifecycle" / "__pycache__").exists(),
+                         "o hook deixou __pycache__ no projeto alvo")
+
+    def test_placeholder_da_propria_recusa_nao_autoriza(self):
+        """Copiar a linha sugerida nao e autorizacao de humano."""
+        self.git_init()
+        (self.root / "src").mkdir(exist_ok=True)
+        (self.root / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "src/app.py"], cwd=str(self.root),
+                       capture_output=True)
+        mensagem = ("adiciona feature\n\n"
+                    "Sem-fase: <por que entra sem fase, e quem autorizou>\n")
+        self.assertEqual(self.commit_msg(mensagem).returncode, 1,
+                         "o placeholder da propria mensagem autorizou o commit")
+
+
+class TestArquivoBinarioEmStaging(KitTestCase):
+    def test_guard_commit_sobrevive_a_arquivo_binario(self):
+        """Um .pyc em staging nao pode derrubar o guard com UnicodeDecodeError."""
+        self.git_init()
+        alvo = self.root / "bin" / "lifecycle" / "bin.pyc"
+        alvo.write_bytes(b"\xa7\x00\x01binario")
+        subprocess.run(["git", "add", "-f", "bin/lifecycle/bin.pyc"],
+                       cwd=str(self.root), capture_output=True)
+        subprocess.run(["git", "commit", "-q", "--no-verify", "-m", "bin"],
+                       cwd=str(self.root), capture_output=True)
+        alvo.write_bytes(b"\xa7\x00\x02outro")
+        subprocess.run(["git", "add", "-f", "bin/lifecycle/bin.pyc"],
+                       cwd=str(self.root), capture_output=True)
+        result = self.run_script("guard-commit")
+        self.assertNotIn("Traceback", result.stderr, result.stderr[-400:])
+        self.assertIn(result.returncode, (0, 1))
+
+
 class TestPh01(KitTestCase):
     def test_ph01_avisa_e_nao_derruba_o_exit_code(self):
         self.git_init()

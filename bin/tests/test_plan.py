@@ -77,6 +77,22 @@ class TestPlan(KitTestCase):
         self.assertIn("0 de 4", saida)
         self.assertNotIn("pendente", saida)
 
+    def test_superseded_nao_conta_como_fechado(self):
+        """SQ-01 exige approved. plan nao pode discordar do gate-check."""
+        novo = self.write_artifact("nucleo", "01-contexto", "novo")
+        path = self.write_artifact("nucleo", "01-contexto", "velho",
+                                   status="superseded", superseded_by=novo)
+        estado = dict(DEFAULT_STATE)
+        estado["tier"] = 1
+        estado["gates"] = {"01-contexto": {"status": "superseded",
+                                           "evidence": path, "by": None,
+                                           "date": None}}
+        self.write_state(estado)
+        saida = self.plan().stdout
+        self.assertIn("4 de 4", saida,
+                      "superseded contado como fechado, mas SQ-01 exige approved")
+        self.assertIn("01-contexto", saida.split("Proxima acao")[1])
+
     def test_recusa_sem_tier_declarado(self):
         estado = dict(DEFAULT_STATE)
         estado["tier"] = None
