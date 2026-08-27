@@ -164,10 +164,14 @@ partes.append("""
 
 ## Escopo
 
-Kit publico, sem promessa de suporte. Nao ha promessa de compatibilidade entre
-majors: o `CHANGELOG.md` diz o que muda e `docs/KIT_VERSION` diz o que cada
-projeto tem instalado. Ele foi escrito para um uso proprio e continua sendo
-mantido assim; se servir para voce, use.
+Kit publico sob licenca MIT, sem promessa de suporte. Nao ha promessa de
+compatibilidade entre majors: o `CHANGELOG.md` diz o que muda e
+`docs/KIT_VERSION` diz o que cada projeto tem instalado. Ele foi escrito para
+um uso proprio e continua sendo mantido assim; se servir para voce, use.
+
+O `LICENSE` esta em ingles porque texto de licenca vale pelo texto original.
+Traduzir seria criar uma licenca nova, parecida com a MIT e sem a
+jurisprudencia dela.
 
 Todo o texto do kit, incluindo os 21 templates, esta em portugues do Brasil.
 Termos tecnicos ficam em ingles de proposito: PRD, ADR, backlog, rollback,

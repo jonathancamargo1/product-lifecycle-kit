@@ -325,6 +325,7 @@ Arvore do kit:
 ````text
 .gitignore
 CHANGELOG.md
+LICENSE
 OPEN_QUESTIONS.md
 README.md
 VERSION
@@ -615,7 +616,7 @@ testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 $ python3 -m unittest discover bin/tests
 ......................................................................................................................................................................................
 ----------------------------------------------------------------------
-Ran 182 tests in 39.220s
+Ran 182 tests in 38.013s
 
 OK
 EXIT: 0
@@ -1008,15 +1009,15 @@ session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-354fe34 humano aprova o gate 17-ship
-3dd3c75 sessao 04: 17-ship executei a fase 17-ship
-616a209 humano aprova o gate 14-review
-828254f sessao 03: 14-review executei a fase 14-review
-beab063 humano aprova o gate 13-build-log
-fcf4c12 sessao 02: 13-build-log executei a fase 13-build
-6af3193 humano aprova o gate 01-contexto
-c80a5de sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-a603c89 instala o product-lifecycle-kit
+bc7d8dd humano aprova o gate 17-ship
+c60e86f sessao 04: 17-ship executei a fase 17-ship
+28da48d humano aprova o gate 14-review
+17f6ca7 sessao 03: 14-review executei a fase 14-review
+01e90ab humano aprova o gate 13-build-log
+5a89bdc sessao 02: 13-build-log executei a fase 13-build
+0055a2a humano aprova o gate 01-contexto
+429c793 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+0809efa instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1187,7 +1188,7 @@ EXIT: 0
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main bdd83ee] commit de codigo com a sessao aberta
+[main 8acd989] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1205,7 +1206,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-044b740 humano aprova o gate 01-contexto
+dd9865d humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1216,7 +1217,7 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main cbb047a] corrige o artefato aprovado sob a decisao D-0001
+[main 129316c] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
@@ -1231,7 +1232,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main b0e45fc] adiciona uma nota solta
+[main a1dc591] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1241,20 +1242,20 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-b0e45fc adiciona uma nota solta
-cbb047a corrige o artefato aprovado sob a decisao D-0001
-33daa92 sessao 06: 17-ship commit de codigo
-bdd83ee commit de codigo com a sessao aberta
-36cc97b sessao 05: 17-ship trabalho da sessao 05
-7908e3e humano aprova o gate 17-ship
-87dea3f sessao 04: 17-ship executei a fase 17-ship
-8d3c17e humano aprova o gate 14-review
-1ee2467 sessao 03: 14-review executei a fase 14-review
-8dbc1c0 humano aprova o gate 13-build-log
-1088a6d sessao 02: 13-build-log executei a fase 13-build
-044b740 humano aprova o gate 01-contexto
-cbac640 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-4866ed6 instala o product-lifecycle-kit
+a1dc591 adiciona uma nota solta
+129316c corrige o artefato aprovado sob a decisao D-0001
+6be6af2 sessao 06: 17-ship commit de codigo
+8acd989 commit de codigo com a sessao aberta
+dbd8cb7 sessao 05: 17-ship trabalho da sessao 05
+8b69dcf humano aprova o gate 17-ship
+0983b72 sessao 04: 17-ship executei a fase 17-ship
+7cd88a0 humano aprova o gate 14-review
+c4d39d7 sessao 03: 14-review executei a fase 14-review
+8700fc2 humano aprova o gate 13-build-log
+b233854 sessao 02: 13-build-log executei a fase 13-build
+dd9865d humano aprova o gate 01-contexto
+b6f5090 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+d97066a instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1382,8 +1383,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 8692 Aug 27 22:59 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 27 22:59 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 8692 Aug 27 23:14 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 27 23:14 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1502,7 +1503,7 @@ $ git commit -m corrige timeout do gateway
 
 Sem-fase: hotfix de producao, autorizado por Jonathan Camargo
 gate-check: nenhuma ocorrencia.
-[main 99b502e] corrige timeout do gateway
+[main 26aafa3] corrige timeout do gateway
  1 file changed, 1 insertion(+)
 EXIT: 0
 
@@ -1523,7 +1524,7 @@ $ python3 bin/lifecycle/gate-check
 gate-check: 0 erro(s), 1 aviso(s).
 EXIT: 0
 $ git log --grep ^Sem-fase: --oneline
-99b502e corrige timeout do gateway
+26aafa3 corrige timeout do gateway
 EXIT: 0
 ````
 
@@ -1565,7 +1566,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) 71cc40a] primeiro commit
+[main (root-commit) 6606c0d] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 docs/nota.md
 EXIT: 0
@@ -1587,7 +1588,7 @@ $ grep -rn --exclude-dir=.git --exclude-dir=out -e "<U+2014>" .
 EXIT: 1
 
 $ python3 varredura de codepoints em todos os arquivos versionados
-arquivos versionados verificados: 86
+arquivos versionados verificados: 87
 ocorrencias de travessao U+2014 ou emoji: 0
 EXIT: 0
 
@@ -1615,10 +1616,14 @@ nenhuma
 
 ## Escopo
 
-Kit publico, sem promessa de suporte. Nao ha promessa de compatibilidade entre
-majors: o `CHANGELOG.md` diz o que muda e `docs/KIT_VERSION` diz o que cada
-projeto tem instalado. Ele foi escrito para um uso proprio e continua sendo
-mantido assim; se servir para voce, use.
+Kit publico sob licenca MIT, sem promessa de suporte. Nao ha promessa de
+compatibilidade entre majors: o `CHANGELOG.md` diz o que muda e
+`docs/KIT_VERSION` diz o que cada projeto tem instalado. Ele foi escrito para
+um uso proprio e continua sendo mantido assim; se servir para voce, use.
+
+O `LICENSE` esta em ingles porque texto de licenca vale pelo texto original.
+Traduzir seria criar uma licenca nova, parecida com a MIT e sem a
+jurisprudencia dela.
 
 Todo o texto do kit, incluindo os 21 templates, esta em portugues do Brasil.
 Termos tecnicos ficam em ingles de proposito: PRD, ADR, backlog, rollback,
