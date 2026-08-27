@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+"""session-close: valida o handoff, fecha a sessao e commita.
+
+Uso:
+  session-close --handoff <arquivo>   fecha a sessao
+  session-close --check               so verifica se pode encerrar
+
+O handoff tem tres secoes (Fiz, Falta, Cuidado com) e no maximo 15 linhas de
+conteudo. Handoff longo nao e lido.
+"""
+import argparse
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _kitlib as kit
+
+AQUI = os.path.dirname(os.path.abspath(__file__))
+SECOES = ("Fiz", "Falta", "Cuidado com")
+MAX_LINHAS = 15
+
+
+def valida_handoff(texto):
+    """Retorna a lista de problemas encontrados."""
+    problemas = []
+    encontradas = re.findall(r"^##\s+(.+?)\s*$", texto, flags=re.M)
+    for secao in SECOES:
+        if not any(e.strip().lower() == secao.lower() for e in encontradas):
+            problemas.append("falta a secao '## %s'" % secao)
+    conteudo = [linha for linha in texto.splitlines()
+                if linha.strip() and not linha.strip().startswith("##")]
+    if len(conteudo) > MAX_LINHAS:
+        problemas.append("handoff tem %d linhas de conteudo, o maximo e %d"
+                         % (len(conteudo), MAX_LINHAS))
+    return problemas
+
+
+def resumo_do_handoff(texto):
+    dentro = False
+    for linha in texto.splitlines():
+        if re.match(r"^##\s+Fiz\s*$", linha.strip(), flags=re.I):
+            dentro = True
+            continue
+        if dentro:
+            if linha.strip().startswith("##"):
+                break
+            limpo = linha.strip().lstrip("-*").strip()
+            if limpo:
+                return re.sub(r"\s+", " ", limpo)[:60]
+    return "sem resumo"
+
+
+def motivo_para_nao_encerrar(root):
+    try:
+        state = kit.read_state(root)
+    except ValueError as erro:
+        return str(erro), None
+    if state.get("session_open"):
+        return ("a sessao %s esta aberta e nao tem handoff"
+                % state.get("session_counter"), state)
+    return None, state
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--handoff")
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args(argv)
+
+    root = kit.repo_root()
+    motivo, state = motivo_para_nao_encerrar(root)
+
+    if args.check:
+        if motivo:
+            # Mensagem neutra de runtime: o nucleo nao sabe qual agente o
+            # opera (principio 12). Quem traduz para o comando local e o
+            # adaptador, em .claude/hooks/stop-gate.sh no caso do Claude Code.
+            sys.stderr.write(
+                "Sessao nao pode encerrar: %s.\n"
+                "Feche com: session-close --handoff <arquivo>\n" % motivo)
+            return 1
+        print("session-close: nada pendente, a sessao pode encerrar.")
+        return 0
+
+    if not args.handoff:
+        kit.die("session-close: informe --handoff <arquivo> ou use --check.", 1)
+    if state is None:
+        kit.die("session-close: %s" % motivo, 1)
+    if not state.get("session_open"):
+        kit.die("session-close: nenhuma sessao aberta. Rode session-open "
+                "primeiro.", 1)
+
+    origem = Path(args.handoff)
+    if not origem.is_absolute():
+        origem = Path(os.getcwd()) / origem
+    if not origem.exists():
+        kit.die("session-close: handoff nao encontrado: %s" % args.handoff, 1)
+
+    texto = origem.read_text(encoding="utf-8")
+    problemas = valida_handoff(texto)
+    if problemas:
+        kit.die("session-close: handoff invalido.\n  " + "\n  ".join(problemas), 1)
+
+    numero = int(state.get("session_counter") or 0)
+    destino = (Path(root) / "docs" / "_handoffs"
+               / ("%s-sessao-%02d.md" % (kit.today(), numero)))
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    mesmo_arquivo = (origem.resolve() == destino.resolve())
+
+    # gate-check roda antes de qualquer mutacao. Fechar a sessao e so entao
+    # descobrir que o gate falhou deixaria o projeto num beco sem saida:
+    # sessao fechada, nada commitado, e session-close recusando rodar de novo.
+    resultado = subprocess.run([sys.executable, os.path.join(AQUI, "gate-check")],
+                               capture_output=True, text=True)
+    sys.stdout.write(resultado.stdout)
+    sys.stderr.write(resultado.stderr)
+    if resultado.returncode != 0:
+        kit.die("session-close: gate-check falhou. A sessao continua aberta e o "
+                "handoff intacto. Corrija os erros acima e rode de novo.", 1)
+
+    destino.write_text(texto, encoding="utf-8")
+    if not mesmo_arquivo:
+        # Se origem e destino sao o mesmo arquivo, mover significaria apagar o
+        # handoff que acabou de ser gravado. Nada de unlink nesse caso.
+        try:
+            origem.unlink()
+        except OSError:
+            pass
+
+    rel = destino.relative_to(root).as_posix()
+    state["last_session"] = rel
+    state["session_open"] = False
+    kit.write_state(root, state)
+    kit.refresh_area_panels(root, state)
+    print("Handoff registrado em %s." % rel)
+
+    fase = state.get("current_phase") or "sem-fase"
+    mensagem = "sessao %02d: %s %s" % (numero, fase, resumo_do_handoff(texto))
+    kit.git(root, "add", "docs")
+    commit = kit.git(root, "commit", "-m", mensagem)
+    if commit.returncode != 0:
+        sys.stdout.write(commit.stdout)
+        sys.stderr.write(commit.stderr)
+        kit.die("session-close: o commit falhou. Veja a saida acima.", 1)
+    print("Commit: %s" % mensagem)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""session-open: abre a sessao e carrega o contexto minimo.
+
+Uso: session-open --agent <codex|claude-code|human>
+
+Recusa abrir se a sessao anterior nao foi fechada. Imprime, nesta ordem e
+nada alem disso: AGENTS.md, docs/STATE.md, o ultimo handoff, CONTEXT.md,
+principles.md e o template da fase corrente. Depois roda gate-check.
+"""
+import argparse
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _kitlib as kit
+
+AQUI = os.path.dirname(os.path.abspath(__file__))
+
+
+def imprime(root, rel):
+    caminho = Path(root) / rel
+    if not caminho.exists():
+        return
+    print("=== %s" % rel)
+    print(caminho.read_text(encoding="utf-8").rstrip())
+    print()
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--agent", required=True)
+    args = parser.parse_args(argv)
+
+    if args.agent not in kit.SESSION_AGENTS:
+        kit.die("session-open: --agent precisa ser um de: %s"
+                % ", ".join(kit.SESSION_AGENTS), 1)
+
+    root = kit.repo_root()
+    try:
+        state = kit.read_state(root)
+    except ValueError as erro:
+        kit.die("session-open: %s" % erro, 1)
+
+    if state.get("session_open"):
+        kit.die(
+            "session-open: a sessao %s ainda esta aberta (agente %s).\n"
+            "Feche primeiro com: session-close --handoff <arquivo>"
+            % (state.get("session_counter"), state.get("session_agent")), 1)
+
+    state["session_open"] = True
+    state["session_agent"] = args.agent
+    state["session_counter"] = int(state.get("session_counter") or 0) + 1
+    kit.write_state(root, state)
+    # O painel da area e vista derivada. Regerar na abertura garante que ele
+    # reflita as aprovacoes feitas por humanos entre uma sessao e outra.
+    kit.refresh_area_panels(root, state)
+
+    agents = "AGENTS.md" if (Path(root) / "AGENTS.md").exists() else "docs/AGENTS.md"
+    imprime(root, agents)
+    imprime(root, "docs/STATE.md")
+    if state.get("last_session"):
+        imprime(root, str(state["last_session"]))
+    imprime(root, "docs/_context/CONTEXT.md")
+    imprime(root, "docs/_context/principles.md")
+    if state.get("current_phase"):
+        try:
+            fase = kit.resolve_phase(str(state["current_phase"]))
+            imprime(root, "docs/_process/templates/%s.md" % fase)
+        except ValueError:
+            pass
+
+    print("=== gate-check")
+    resultado = subprocess.run([sys.executable, os.path.join(AQUI, "gate-check")],
+                               capture_output=True, text=True)
+    sys.stdout.write(resultado.stdout)
+    sys.stderr.write(resultado.stderr)
+    print()
+    print("Sessao %02d aberta para o agente %s."
+          % (state["session_counter"], args.agent))
+    print("Ultima acao da sessao: session-close --handoff <arquivo>.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

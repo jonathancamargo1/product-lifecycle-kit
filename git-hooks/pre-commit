@@ -1,0 +1,26 @@
+#!/bin/sh
+# product-lifecycle-kit: enforcement comum.
+# Roda gate-check e guard-commit. Vale para qualquer runtime, porque quem
+# impoe aqui e o git, nao o agente.
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+
+LIFECYCLE=""
+for dir in bin/lifecycle bin; do
+    if [ -f "$ROOT/$dir/gate-check" ]; then
+        LIFECYCLE="$ROOT/$dir"
+        break
+    fi
+done
+
+if [ -z "$LIFECYCLE" ]; then
+    exit 0
+fi
+
+if [ -x "$ROOT/.git/hooks/pre-commit.local" ]; then
+    "$ROOT/.git/hooks/pre-commit.local" "$@" || exit $?
+fi
+
+python3 "$LIFECYCLE/gate-check" || exit 1
+python3 "$LIFECYCLE/guard-commit" || exit 1
+exit 0

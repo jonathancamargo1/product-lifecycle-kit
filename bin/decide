@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""decide: abre uma decisao PENDING e bloqueia o estado.
+
+Uso:
+  decide --titulo "..." --afeta <path>[,<path>] [--contexto ...]
+         [--opcoes ...] [--recomendacao ...]
+
+Sem --titulo, le os campos do stdin no formato "Campo: valor".
+Existe como script para que qualquer runtime tenha o mesmo comando que o
+Claude Code tem como slash command.
+"""
+import argparse
+import os
+import sys
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _kitlib as kit
+
+CAMPOS = ("titulo", "contexto", "opcoes", "recomendacao", "afeta")
+
+
+def le_stdin():
+    dados = {}
+    if sys.stdin.isatty():
+        return dados
+    for linha in sys.stdin.read().splitlines():
+        if ":" not in linha:
+            continue
+        chave, _, valor = linha.partition(":")
+        chave = chave.strip().lower()
+        if chave in CAMPOS:
+            dados[chave] = valor.strip()
+    return dados
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    for campo in CAMPOS:
+        parser.add_argument("--%s" % campo)
+    args = parser.parse_args(argv)
+
+    dados = {campo: getattr(args, campo) for campo in CAMPOS}
+    if not dados["titulo"]:
+        dados.update({k: v for k, v in le_stdin().items() if v})
+
+    if not dados.get("titulo"):
+        kit.die("decide: --titulo e obrigatorio.", 1)
+    if not dados.get("afeta"):
+        kit.die("decide: --afeta e obrigatorio. Sem path afetado, a decisao nao "
+                "libera nada.", 1)
+
+    root = kit.repo_root()
+    try:
+        state = kit.read_state(root)
+    except ValueError as erro:
+        kit.die("decide: %s" % erro, 1)
+
+    identificador = kit.next_decision_id(root)
+    afeta = ", ".join(p.strip() for p in dados["afeta"].split(",") if p.strip())
+    bloco = (
+        "\n## %s | %s | PENDING | %s\n"
+        "Contexto: %s\n"
+        "Opcoes: %s\n"
+        "Recomendacao do agente: %s\n"
+        "Decisao: (preenchido pelo humano)\n"
+        "Decidido por: (nome) em (data)\n"
+        "Afeta: %s\n"
+    ) % (identificador, kit.today(), dados["titulo"],
+         dados.get("contexto") or "(preencher)",
+         dados.get("opcoes") or "(preencher)",
+         dados.get("recomendacao") or "(preencher)",
+         afeta)
+
+    caminho = kit.decisions_path(root)
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    atual = caminho.read_text(encoding="utf-8") if caminho.exists() else ""
+    caminho.write_text(atual.rstrip("\n") + "\n" + bloco, encoding="utf-8")
+
+    state["blocked_by"] = identificador
+    kit.write_state(root, state)
+
+    print("Decisao %s aberta em docs/_context/decisions.log." % identificador)
+    print("blocked_by em docs/STATE.md aponta para %s." % identificador)
+    print("Encerre a sessao com session-close.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
