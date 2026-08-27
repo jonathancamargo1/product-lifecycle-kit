@@ -145,7 +145,21 @@ else
     # AGENTS.md editado pelo projeto nunca e tocado. Mas o que veio do kit e
     # nunca foi mexido precisa acompanhar, senao o projeto atualiza os hooks e
     # fica com instrucoes que nao falam das regras novas.
-    if [ -f "$ALVO/AGENTS.md" ] && ! customizado "AGENTS.md"; then
+    # O manifesto da 1.0.0 guardava o hash do arquivo do ALVO, nao o do kit,
+    # entao ele nao distingue customizado de intocado. A lista de hashes ja
+    # publicados resolve: se o arquivo do alvo e identico a alguma versao que o
+    # kit ja entregou, ninguem mexeu nele.
+    AGENTS_PUBLICADOS="f102779f4d29e6ba7fb1bc2457eb5f582db31b97dea59c7c17974d52684ec5aa"
+    agents_intocado() {
+        [ -f "$ALVO/AGENTS.md" ] || return 1
+        atual="$(soma "$ALVO/AGENTS.md")"
+        [ "$atual" = "$(soma "$KIT_DIR/docs/AGENTS.md")" ] && return 0
+        for conhecido in $AGENTS_PUBLICADOS; do
+            [ "$atual" = "$conhecido" ] && return 0
+        done
+        return 1
+    }
+    if agents_intocado; then
         cp "$KIT_DIR/docs/AGENTS.md" "$ALVO/AGENTS.md"
         info "  AGENTS.md nao tinha edicao do projeto, foi atualizado"
     elif [ -f "$ALVO/AGENTS.md" ]; then
@@ -161,25 +175,23 @@ fi
 for script in gate-check new-artifact session-open session-close guard-write plan \
               guard-commit decide _kitlib.py; do
     rel="bin/lifecycle/$script"
-    if [ "$UPDATE" -eq 1 ]; then
-        mkdir -p "$ALVO/bin/lifecycle"
-        cp "$KIT_DIR/bin/$script" "$ALVO/$rel"
-        printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
-    else
-        # bin/lifecycle e territorio do kit, como docs/_process: script dali e
-        # sempre realinhado. Preservar um _kitlib.py antigo junto com hooks
-        # novos quebra todo commit do projeto, e um manifesto ausente ou
-        # desatualizado nao pode deixar o projeto nesse estado.
-        mkdir -p "$ALVO/bin/lifecycle"
-        cp "$KIT_DIR/bin/$script" "$ALVO/$rel"
-        printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
-    fi
+    # bin/lifecycle e territorio do kit, como docs/_process: script dali e
+    # sempre realinhado, na instalacao e no update. Preservar um _kitlib.py
+    # antigo junto com hooks novos quebra todo commit do projeto.
+    mkdir -p "$ALVO/bin/lifecycle"
+    cp "$KIT_DIR/bin/$script" "$ALVO/$rel"
+    printf '%s  %s\n' "$(soma "$ALVO/$rel")" "$rel" >> "$MANIFESTO.novo"
     [ "$script" = "_kitlib.py" ] || chmod +x "$ALVO/$rel" 2>/dev/null || true
 done
 
 # 3b. bytecode do python nunca deve ser versionado no alvo: um .pyc de
 # bin/lifecycle rastreado derruba o guard-commit no commit seguinte.
 if ! grep -qx "__pycache__/" "$ALVO/.gitignore" 2>/dev/null; then
+    # .gitignore sem newline final: append cru grudaria na ultima linha e
+    # invalidaria as duas regras de uma vez.
+    if [ -s "$ALVO/.gitignore" ] && [ -n "$(tail -c 1 "$ALVO/.gitignore")" ]; then
+        printf '\n' >> "$ALVO/.gitignore"
+    fi
     printf '__pycache__/\n*.pyc\n' >> "$ALVO/.gitignore"
     info "  __pycache__ adicionado ao .gitignore do alvo"
 fi

@@ -51,9 +51,12 @@ executor, e sem rastro da decisao de produto que o originou.
 
 Nao e bloqueio automatico. E recusa com o custo na tela e um caminho de saida
 que exige ato deliberado: a linha `Sem-fase: <motivo, e quem autorizou>` no
-proprio commit. Quem autoriza e humano, o agente pergunta. A autorizacao fica
-no historico do git para sempre, e o `gate-check` conta quantas existem
-(codigo `PH-01`, aviso), para a divida nao sumir de vista.
+proprio commit. Quem autoriza e humano, o agente pergunta. O `gate-check` conta
+quantas existem (codigo `PH-01`, aviso), para a divida nao sumir de vista.
+
+O registro vive na mensagem do commit, entao reescrita de historico
+(`--amend`, rebase) pode apaga-lo, e `--no-verify` pula os hooks. Garantia
+forte contra isso e protecao de branch no servidor, fora do alcance do kit.
 
 Rode `bin/lifecycle/plan` para ver o que falta ate a fase de build.
 

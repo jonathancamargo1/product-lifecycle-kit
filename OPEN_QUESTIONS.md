@@ -448,15 +448,27 @@ no proprio commit. Tres consequencias de desenho:
 - Quem autoriza e humano. `AGENTS.md` proibe o agente de escrever o trailer
   por conta propria, com a analogia direta: autorizar a si mesmo e o mesmo que
   aprovar o proprio gate.
-- A autorizacao fica no historico do git para sempre, nao num arquivo que
-  alguem limpa depois.
+- A autorizacao fica registrada no commit, nao num arquivo que alguem limpa
+  depois. Com a ressalva abaixo sobre reescrita de historico.
 - `gate-check` conta quantas existem (`PH-01`, aviso) e mostra em toda sessao,
   porque `session-open` roda o `gate-check`. A divida nao some de vista.
 
-O limite que fica, e nenhum hook fecha: o trailer e texto de commit, entao um
-agente que decida mentir consegue escreve-lo sozinho. E o mesmo teto do
-`git commit --no-verify` (Q23). O kit torna o desvio caro, visivel e
-permanente; nao torna impossivel.
+Os limites que ficam, e nenhum hook fecha:
+
+- O trailer e texto de commit, entao um agente que decida mentir consegue
+  escreve-lo sozinho. O `commit-msg` recusa o texto de exemplo da propria
+  mensagem, para copiar e colar nao contar como autorizacao, mas nao ha como
+  distinguir um motivo inventado de um motivo real.
+- `git commit --amend` sem mudanca de arquivo nao apresenta codigo em staging,
+  entao a regra nao dispara, e a mensagem pode perder o trailer. `git rebase`,
+  `git filter-branch` e afins reescrevem historico da mesma forma. Isso vale
+  para qualquer registro que viva em mensagem de commit, em qualquer
+  repositorio.
+- `git commit --no-verify` (Q23) pula os hooks por completo.
+
+O kit torna o desvio caro, visivel e rastreavel; nao torna impossivel. Quem
+precisa de garantia forte contra reescrita de historico precisa de protecao de
+branch no servidor, que e camada que um kit de arquivos nao alcanca.
 
 A partir de que fase codigo e legitimo esta em `_kitlib.CODE_PHASE_FROM`, hoje
 13. O SQ-01 garante que tudo que o tier exige antes da 13 ja esta aprovado

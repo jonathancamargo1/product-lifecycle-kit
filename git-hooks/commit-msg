@@ -62,8 +62,16 @@ def autorizado(mensagem, marca):
     return False
 
 
-def trailer_vazio(mensagem, marca):
-    return bool(_trailers(mensagem, marca))
+def trailer_recusado(mensagem, marca):
+    """Devolve o motivo da recusa do trailer, ou None se nao ha trailer."""
+    for linha in _trailers(mensagem, marca):
+        motivo = linha.split(":", 1)[1].strip()
+        if not motivo:
+            return "esta vazio"
+        if PLACEHOLDER in motivo.lower():
+            return ("ainda esta com o texto de exemplo desta mensagem. Ele nao "
+                    "e autorizacao de ninguem")
+    return None
 
 
 def carrega_kit(root):
@@ -137,10 +145,12 @@ def fase_para_codigo(root, mensagem):
 
     if autorizado(mensagem, kit.CODE_TRAILER):
         return None
-    if trailer_vazio(mensagem, kit.CODE_TRAILER):
-        return ("commit-msg: %s esta vazio. A autorizacao precisa de motivo:\n"
-                "  %s <por que este codigo entra sem fase, e quem autorizou>\n"
-                % (kit.CODE_TRAILER, kit.CODE_TRAILER))
+    recusado = trailer_recusado(mensagem, kit.CODE_TRAILER)
+    if recusado:
+        return ("commit-msg: %s %s.\n"
+                "Pergunte ao humano e escreva a resposta dele, com nome:\n"
+                "  %s hotfix de producao, autorizado por <nome da pessoa>\n"
+                % (kit.CODE_TRAILER, recusado, kit.CODE_TRAILER))
 
     fase = state.get("current_phase") or "nenhuma"
     exemplo = codigo[0] if len(codigo) == 1 else "%s e mais %d" % (codigo[0],

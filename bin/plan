@@ -108,12 +108,20 @@ def main(argv=None):
     else:
         print("Proxima acao: fechar a fase %s, hoje em %s."
               % (seguinte["slug"], seguinte["status"]))
-        if seguinte["status"] in ("draft", "in_progress"):
-            print("  preencha %s e marque status: proposed."
-                  % (seguinte["evidence"] or "o artefato"))
+        alvo = seguinte["evidence"] or "o artefato"
+        if seguinte["status"] == "superseded":
+            # Mandar aprovar o artefato ja superado seria mandar aprovar o que
+            # foi descartado. O gate precisa apontar para o substituto.
+            fields, _ = kit.read_frontmatter(Path(root) / str(seguinte["evidence"]))
+            novo_path = (fields or {}).get("superseded_by")
+            print("  %s foi substituido por %s." % (alvo, novo_path or "outro artefato"))
+            print("  aponte o evidence do gate em docs/STATE.md para o substituto "
+                  "e aprove ele.")
+        elif seguinte["status"] in ("draft", "in_progress"):
+            print("  preencha %s e marque status: proposed." % alvo)
         else:
             print("  um humano aprova editando o frontmatter de %s e o gate em "
-                  "docs/STATE.md." % (seguinte["evidence"] or "o artefato"))
+                  "docs/STATE.md." % alvo)
     return 0
 
 

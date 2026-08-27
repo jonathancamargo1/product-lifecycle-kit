@@ -169,13 +169,16 @@ Sem-fase: <por que entra sem fase, e quem autorizou>
 Tres consequencias de desenho. Quem autoriza e humano: o `AGENTS.md` proibe o
 agente de escrever esse trailer sozinho, com a analogia direta de que
 autorizar a si mesmo e o mesmo que aprovar o proprio gate. A autorizacao fica
-no historico do git para sempre, nao num arquivo que alguem limpa depois. E o
-`gate-check` conta quantas existem (`PH-01`, aviso) e mostra em toda sessao,
-porque `session-open` roda o `gate-check`.
+registrada no commit, nao num arquivo que alguem limpa depois. E o `gate-check`
+conta quantas existem (`PH-01`, aviso) e mostra em toda sessao, porque
+`session-open` roda o `gate-check`.
 
-O limite, que nenhum hook fecha: o trailer e texto de commit, entao um agente
-que decida mentir consegue escreve-lo. E o mesmo teto do `--no-verify`. O kit
-torna o desvio caro, visivel e permanente; nao torna impossivel.
+Os limites, que nenhum hook fecha: o trailer e texto de commit, entao um agente
+que decida mentir consegue escreve-lo; e reescrita de historico (`--amend`,
+rebase) pode apagar o registro, como pode com qualquer coisa que viva em
+mensagem de commit. Mesmo teto do `--no-verify`. O kit torna o desvio caro,
+visivel e rastreavel; nao torna impossivel. Garantia forte contra reescrita e
+protecao de branch no servidor, camada que um kit de arquivos nao alcanca.
 
 ## Quem aprova
 
@@ -553,7 +556,7 @@ testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 $ python3 -m unittest discover bin/tests
 .......................................................................................................................................................................
 ----------------------------------------------------------------------
-Ran 167 tests in 33.391s
+Ran 167 tests in 35.166s
 
 OK
 EXIT: 0
@@ -946,15 +949,15 @@ session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-ed77748 humano aprova o gate 17-ship
-a938e14 sessao 04: 17-ship executei a fase 17-ship
-70cefc7 humano aprova o gate 14-review
-90c6cf4 sessao 03: 14-review executei a fase 14-review
-23aaea7 humano aprova o gate 13-build-log
-f5b0a66 sessao 02: 13-build-log executei a fase 13-build
-971bb0d humano aprova o gate 01-contexto
-50430c9 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-6de67c2 instala o product-lifecycle-kit
+e73e976 humano aprova o gate 17-ship
+b2d47d1 sessao 04: 17-ship executei a fase 17-ship
+5e3f567 humano aprova o gate 14-review
+0688059 sessao 03: 14-review executei a fase 14-review
+2db661c humano aprova o gate 13-build-log
+c5ab99b sessao 02: 13-build-log executei a fase 13-build
+89a206c humano aprova o gate 01-contexto
+7612d84 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+fb432e5 instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1125,7 +1128,7 @@ EXIT: 0
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main 74f0782] commit de codigo com a sessao aberta
+[main c44f6ac] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1143,7 +1146,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-ec34cb4 humano aprova o gate 01-contexto
+6c36afd humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1154,8 +1157,10 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main 27388bd] corrige o artefato aprovado sob a decisao D-0001
- 2 files changed, 8 insertions(+)
+[main a3e05d5] corrige o artefato aprovado sob a decisao D-0001
+ 4 files changed, 24 insertions(+)
+ create mode 100644 docs/_handoffs/2026-08-27-sessao-05.md
+ create mode 100644 docs/_handoffs/2026-08-27-sessao-06.md
 EXIT: 0
 
 ----- 8. commit-msg recusa sessao 99 quando o session_counter nao bate -----
@@ -1169,7 +1174,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main 1a8940b] adiciona uma nota solta
+[main c9f8184] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1179,20 +1184,20 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-1a8940b adiciona uma nota solta
-27388bd corrige o artefato aprovado sob a decisao D-0001
-e863951 sessao 06: 17-ship commit de codigo
-74f0782 commit de codigo com a sessao aberta
-ad92825 sessao 05: 17-ship trabalho da sessao 05
-05dbf9c humano aprova o gate 17-ship
-d782815 sessao 04: 17-ship executei a fase 17-ship
-b993bf4 humano aprova o gate 14-review
-f58567c sessao 03: 14-review executei a fase 14-review
-4afe880 humano aprova o gate 13-build-log
-36fb465 sessao 02: 13-build-log executei a fase 13-build
-ec34cb4 humano aprova o gate 01-contexto
-506e45b sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-9cbe7cb instala o product-lifecycle-kit
+c9f8184 adiciona uma nota solta
+a3e05d5 corrige o artefato aprovado sob a decisao D-0001
+c1cbf8f sessao 06: 17-ship commit de codigo
+c44f6ac commit de codigo com a sessao aberta
+40ba275 sessao 05: 17-ship trabalho da sessao 05
+8780595 humano aprova o gate 17-ship
+f77a872 sessao 04: 17-ship executei a fase 17-ship
+277f396 humano aprova o gate 14-review
+8f5e3ac sessao 03: 14-review executei a fase 14-review
+3d2770b humano aprova o gate 13-build-log
+a72e824 sessao 02: 13-build-log executei a fase 13-build
+6c36afd humano aprova o gate 01-contexto
+0e5378a sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+ce7850d instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1285,7 +1290,6 @@ EXIT: 0
 
 ----- 6. O kit real continua na versao de antes -----
 $ git -C /home/user/product-lifecycle-kit status --short VERSION CHANGELOG.md bin/_kitlib.py
- M bin/_kitlib.py
 EXIT: 0
 
 ----- 7. gate-check continua limpo depois do update -----
@@ -1335,8 +1339,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 7875 Aug 27 16:43 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 27 16:43 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 8314 Aug 27 16:58 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 27 16:58 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1455,7 +1459,7 @@ $ git commit -m corrige timeout do gateway
 
 Sem-fase: hotfix de producao, autorizado por Jonathan Camargo
 gate-check: nenhuma ocorrencia.
-[main a2a067f] corrige timeout do gateway
+[main ec78133] corrige timeout do gateway
  1 file changed, 1 insertion(+)
 EXIT: 0
 
@@ -1465,8 +1469,9 @@ $ git commit -m outra coisa
 Sem-fase:
 [PH-01] docs/STATE.md:9 1 commit(s) de codigo entraram sem fase de build aberta. Veja com: git log --grep '^Sem-fase:'
 gate-check: 0 erro(s), 1 aviso(s).
-commit-msg: Sem-fase: esta vazio. A autorizacao precisa de motivo:
-  Sem-fase: <por que este codigo entra sem fase, e quem autorizou>
+commit-msg: Sem-fase: esta vazio.
+Pergunte ao humano e escreva a resposta dele, com nome:
+  Sem-fase: hotfix de producao, autorizado por <nome da pessoa>
 EXIT: 1
 
 ----- 8. A divida aparece em toda sessao, e o rastro e permanente -----
@@ -1475,7 +1480,7 @@ $ python3 bin/lifecycle/gate-check
 gate-check: 0 erro(s), 1 aviso(s).
 EXIT: 0
 $ git log --grep ^Sem-fase: --oneline
-a2a067f corrige timeout do gateway
+ec78133 corrige timeout do gateway
 EXIT: 0
 ````
 
@@ -1517,7 +1522,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) b95e3a4] primeiro commit
+[main (root-commit) db82a6c] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 docs/nota.md
 EXIT: 0
