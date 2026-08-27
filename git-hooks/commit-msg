@@ -87,6 +87,12 @@ def fase_para_codigo(root, mensagem):
     except (ValueError, TypeError):
         return None
 
+    # O primeiro commit do repositorio esta importando o que ja existia, nao
+    # escrevendo feature. A propria instalacao manda commitar tudo.
+    if subprocess.run(["git", "rev-parse", "--verify", "HEAD"], cwd=str(root),
+                      capture_output=True).returncode != 0:
+        return None
+
     # Merge nao esta autorando codigo novo, esta juntando o que ja existe, e o
     # diff em staging carrega tudo que vem do outro branch.
     if (root / ".git" / "MERGE_HEAD").exists():

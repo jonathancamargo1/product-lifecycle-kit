@@ -132,6 +132,7 @@ def main(argv=None):
             pass
 
     rel = destino.relative_to(root).as_posix()
+    last_session_antes = state.get("last_session")
     state["last_session"] = rel
     state["session_open"] = False
     kit.write_state(root, state)
@@ -141,11 +142,23 @@ def main(argv=None):
     fase = state.get("current_phase") or "sem-fase"
     mensagem = "sessao %02d: %s %s" % (numero, fase, resumo_do_handoff(texto))
     kit.git(root, "add", "docs")
-    commit = kit.git(root, "commit", "-m", mensagem)
+    # Commit restrito a docs: o que o agente tiver deixado em staging fora dali
+    # nao entra no commit da sessao, e nao arrasta a regra de fase para codigo
+    # para dentro do fechamento.
+    commit = kit.git(root, "commit", "-m", mensagem, "--", "docs")
     if commit.returncode != 0:
         sys.stdout.write(commit.stdout)
         sys.stderr.write(commit.stderr)
-        kit.die("session-close: o commit falhou. Veja a saida acima.", 1)
+        # O commit falhou depois de o estado ja ter mudado. Devolver a sessao e
+        # o handoff e o que torna a falha recuperavel: sem isso, o trabalho fica
+        # preso e so sai editando docs/STATE.md a mao.
+        if not mesmo_arquivo:
+            destino.replace(origem)
+        state["last_session"] = last_session_antes
+        state["session_open"] = True
+        kit.write_state(root, state)
+        kit.die("session-close: o commit falhou, veja a saida acima. A sessao "
+                "continua aberta e o handoff intacto.", 1)
     print("Commit: %s" % mensagem)
     return 0
 

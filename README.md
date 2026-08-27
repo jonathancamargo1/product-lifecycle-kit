@@ -548,9 +548,9 @@ testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 
 ````text
 $ python3 -m unittest discover bin/tests
-........................................................................................................................................................
+............................................................................................................................................................
 ----------------------------------------------------------------------
-Ran 152 tests in 22.240s
+Ran 156 tests in 22.095s
 
 OK
 EXIT: 0
@@ -576,7 +576,7 @@ aberta (3a); `session-close --check` saindo 1 com a sessao aberta e 0 depois
 
 ----- 1. Instalacao -----
 $ /home/user/product-lifecycle-kit/install.sh . --adapters claude-code
-Instalando o product-lifecycle-kit 1.1.0 em /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-a.
+Instalando o product-lifecycle-kit 1.1.0 em /tmp/prova-a.
 Adaptador claude-code.
 
 docs/KIT_VERSION: 1.1.0
@@ -942,15 +942,15 @@ session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-4bda016 humano aprova o gate 17-ship
-c3c4fd3 sessao 04: 17-ship executei a fase 17-ship
-22e4e18 humano aprova o gate 14-review
-f3375b7 sessao 03: 14-review executei a fase 14-review
-19ca8e2 humano aprova o gate 13-build-log
-c6d267b sessao 02: 13-build-log executei a fase 13-build
-6d72aae humano aprova o gate 01-contexto
-9e40d40 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-58115ce instala o product-lifecycle-kit
+322afce humano aprova o gate 17-ship
+fe857c3 sessao 04: 17-ship executei a fase 17-ship
+47d4f22 humano aprova o gate 14-review
+d02f2e6 sessao 03: 14-review executei a fase 14-review
+056dc1a humano aprova o gate 13-build-log
+3665e71 sessao 02: 13-build-log executei a fase 13-build
+894b4f5 humano aprova o gate 01-contexto
+0994115 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+a368166 instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -976,7 +976,7 @@ garantias que existem sem rede de seguranca de runtime:
 
 ----- 1. Instalacao sem nenhum hook de runtime -----
 $ /home/user/product-lifecycle-kit/install.sh . --adapters codex
-Instalando o product-lifecycle-kit 1.1.0 em /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b.
+Instalando o product-lifecycle-kit 1.1.0 em /tmp/prova-b.
 Adaptador codex.
 
 docs/KIT_VERSION: 1.1.0
@@ -1119,7 +1119,7 @@ EXIT: 0
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main 11760f2] commit de codigo com a sessao aberta
+[main c4bca27] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1137,7 +1137,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-307540e humano aprova o gate 01-contexto
+a32c726 humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1148,7 +1148,7 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main 9e72655] corrige o artefato aprovado sob a decisao D-0001
+[main e8de8c7] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
@@ -1163,7 +1163,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main b74097e] adiciona uma nota solta
+[main 253a934] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1173,20 +1173,20 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-b74097e adiciona uma nota solta
-9e72655 corrige o artefato aprovado sob a decisao D-0001
-f1b238a sessao 06: 17-ship commit de codigo
-11760f2 commit de codigo com a sessao aberta
-873f58a sessao 05: 17-ship trabalho da sessao 05
-3caed79 humano aprova o gate 17-ship
-395c349 sessao 04: 17-ship executei a fase 17-ship
-c2ec0b9 humano aprova o gate 14-review
-09c953e sessao 03: 14-review executei a fase 14-review
-f596cd6 humano aprova o gate 13-build-log
-4db8de4 sessao 02: 13-build-log executei a fase 13-build
-307540e humano aprova o gate 01-contexto
-d7ba32a sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-933869e instala o product-lifecycle-kit
+253a934 adiciona uma nota solta
+e8de8c7 corrige o artefato aprovado sob a decisao D-0001
+25a55dc sessao 06: 17-ship commit de codigo
+c4bca27 commit de codigo com a sessao aberta
+d130911 sessao 05: 17-ship trabalho da sessao 05
+e8be1fc humano aprova o gate 17-ship
+2a5e0ec sessao 04: 17-ship executei a fase 17-ship
+017b321 humano aprova o gate 14-review
+0712d0c sessao 03: 14-review executei a fase 14-review
+ad36500 humano aprova o gate 13-build-log
+4af7a22 sessao 02: 13-build-log executei a fase 13-build
+a32c726 humano aprova o gate 01-contexto
+650d022 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+f149b3a instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1209,7 +1209,7 @@ kit instalou. Edicao a mao no mesmo arquivo continua barrada.
 ````text
 
 ----- 1. Estado antes do update -----
-$ cat /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b/docs/KIT_VERSION
+$ cat /tmp/prova-b/docs/KIT_VERSION
 1.1.0
 EXIT: 0
 impressao digital de STATE.md + _handoffs + areas: 54836ebb41342f0ea4d0769a113dffc490b8acbb38b1a24c73306be43d3fc3eb
@@ -1222,8 +1222,8 @@ $ cat /home/user/product-lifecycle-kit/VERSION   (o kit real)
 1.1.0
 
 ----- 3. install.sh --update, rodado a partir da copia -----
-$ <copia>/install.sh /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b --update
-Atualizando o kit em /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b para a versao 1.2.0.
+$ <copia>/install.sh /tmp/prova-b --update
+Atualizando o kit em /tmp/prova-b para a versao 1.2.0.
 Versao anterior: 1.1.0
   AGENTS.md nao tinha edicao do projeto, foi atualizado
   adaptador claude-code nao estava instalado, pulando
@@ -1261,7 +1261,7 @@ Instalacao concluida. gate-check saiu com 0.
 EXIT: 0
 
 ----- 4. KIT_VERSION do alvo mudou -----
-$ cat /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b/docs/KIT_VERSION
+$ cat /tmp/prova-b/docs/KIT_VERSION
 1.2.0
 EXIT: 0
 
@@ -1271,7 +1271,7 @@ depois: 54836ebb41342f0ea4d0769a113dffc490b8acbb38b1a24c73306be43d3fc3eb
 IGUAIS. O update nao tocou em estado, handoffs nem artefatos.
 
 ----- 5a. git status do alvo depois do update -----
-$ git -C /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-b status --short
+$ git -C /tmp/prova-b status --short
  M bin/lifecycle/_kitlib.py
  M docs/.kit-manifest
  M docs/KIT_VERSION
@@ -1298,7 +1298,7 @@ isso em vez de deixar passar.
 
 ````text
 $ /home/user/product-lifecycle-kit/install.sh . --adapters none
-Instalando o product-lifecycle-kit 1.1.0 em /tmp/claude-0/-home-user-product-lifecycle-kit/60dcdfed-09ac-5fd3-bcc6-7904234f2c90/scratchpad/prova-none.
+Instalando o product-lifecycle-kit 1.1.0 em /tmp/prova-none.
 
 docs/KIT_VERSION: 1.1.0
 Rodando gate-check no alvo.
@@ -1328,8 +1328,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 6584 Aug 27 15:00 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 27 15:00 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 6889 Aug 27 15:17 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 27 15:17 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1447,7 +1447,7 @@ $ git commit -m corrige timeout do gateway
 
 Sem-fase: hotfix de producao, autorizado por Jonathan Camargo
 gate-check: nenhuma ocorrencia.
-[main 0d01630] corrige timeout do gateway
+[main 44048fe] corrige timeout do gateway
  1 file changed, 1 insertion(+)
 EXIT: 0
 
@@ -1467,7 +1467,7 @@ $ python3 bin/lifecycle/gate-check
 gate-check: 0 erro(s), 1 aviso(s).
 EXIT: 0
 $ git log --grep ^Sem-fase: --oneline
-0d01630 corrige timeout do gateway
+44048fe corrige timeout do gateway
 EXIT: 0
 ````
 
@@ -1509,7 +1509,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) 4eed542] primeiro commit
+[main (root-commit) be5346e] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 docs/nota.md
 EXIT: 0
@@ -1528,7 +1528,8 @@ ocorrencia e a varredura acusaria a si mesma.
 
 ````text
 $ grep -rn --exclude-dir=.git -e "<U+2014>" .
-EXIT: 1
+grep: ./proofs/out/varredura.out: input file is also the output
+EXIT: 2
 
 $ python3 varredura de codepoints em todos os arquivos versionados
 arquivos versionados verificados: 83

@@ -210,6 +210,42 @@ class TestFalhaRecuperavel(SessionBase):
         self.assertIn("session_open: false", self.state_text())
 
 
+class TestSessionCloseComCodigoEmStaging(SessionBase):
+    """A regra de fase para codigo nao pode estragar o session-close."""
+
+    def test_codigo_em_staging_nao_estraga_o_commit_da_sessao(self):
+        self.git_init()
+        self.abre()
+        (self.root / "src").mkdir(exist_ok=True)
+        (self.root / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+        import subprocess
+        subprocess.run(["git", "add", "src/app.py"], cwd=str(self.root),
+                       capture_output=True)
+        nome = self.handoff()
+        result = self.run_script("session-close", "--handoff", nome)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("session_open: false", self.state_text())
+        log = self._git("log", "-1", "--pretty=%s").stdout.strip()
+        self.assertTrue(log.startswith("sessao 01:"), "commit da sessao: %r" % log)
+
+    def test_falha_no_commit_devolve_a_sessao(self):
+        """Se o commit falhar, a sessao volta a estar aberta e recuperavel."""
+        self.git_init()
+        self.abre()
+        nome = self.handoff()
+        # impede o commit sem impedir o gate-check
+        (self.root / ".git" / "hooks").mkdir(parents=True, exist_ok=True)
+        hook = self.root / ".git" / "hooks" / "commit-msg"
+        hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        hook.chmod(0o755)
+        result = self.run_script("session-close", "--handoff", nome)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("session_open: true", self.state_text(),
+                      "a sessao ficou fechada apesar de o commit ter falhado")
+        self.assertTrue((self.root / nome).exists(),
+                        "o handoff foi consumido apesar da falha")
+
+
 class TestDecide(SessionBase):
     def test_cria_entrada_pendente_e_bloqueia_o_estado(self):
         result = self.run_script(

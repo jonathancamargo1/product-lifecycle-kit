@@ -192,6 +192,36 @@ class TestBordas(KitTestCase):
                          "nao mande rodar um comando que o SQ-01 vai recusar")
 
 
+class TestNaoCodigo(KitTestCase):
+    def commit_msg(self, mensagem):
+        (self.root / "MSG").write_text(mensagem, encoding="utf-8")
+        return subprocess.run(
+            [sys.executable, str(KIT_ROOT / "git-hooks" / "commit-msg"), "MSG"],
+            cwd=str(self.root), capture_output=True, text=True)
+
+    def test_primeiro_commit_do_repositorio_nao_e_barrado(self):
+        """A instalacao manda commitar tudo. Nao pode ser recusada."""
+        subprocess.run(["git", "init", "-q", "-b", "main"], cwd=str(self.root),
+                       capture_output=True)
+        subprocess.run(["git", "config", "user.name", "J"], cwd=str(self.root),
+                       capture_output=True)
+        subprocess.run(["git", "config", "user.email", "j@x"], cwd=str(self.root),
+                       capture_output=True)
+        (self.root / "src").mkdir(exist_ok=True)
+        (self.root / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=str(self.root), capture_output=True)
+        result = self.commit_msg("instala o product-lifecycle-kit\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_documento_na_raiz_nao_e_codigo(self):
+        self.git_init()
+        for nome in ("README.md", "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md"):
+            (self.root / nome).write_text("texto\n", encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=str(self.root), capture_output=True)
+        result = self.commit_msg("atualiza a documentacao\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 class TestPh01(KitTestCase):
     def test_ph01_avisa_e_nao_derruba_o_exit_code(self):
         self.git_init()

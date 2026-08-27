@@ -41,7 +41,8 @@ CODE_PHASE_FROM = 13
 
 # Caminhos que sao do kit ou do processo, nao do produto.
 NON_CODE_PREFIXES = ("docs/", ".claude/", "bin/lifecycle/", "proofs/")
-NON_CODE_FILES = ("AGENTS.md", "CLAUDE.md", ".gitignore")
+NON_CODE_FILES = ("AGENTS.md", "CLAUDE.md", ".gitignore", "README.md",
+                  "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md")
 CODE_TRAILER = "Sem-fase:"
 
 
@@ -594,16 +595,27 @@ def refresh_area_panels(root, state):
         for pasta in sorted((base / area).iterdir()):
             if not pasta.is_dir() or pasta.name in presentes:
                 continue
-            artefatos = [a for a in sorted(pasta.glob("*.md"))
-                         if a.name != "README.md"]
-            if not artefatos:
+            vivo = None
+            for artefato in sorted(pasta.glob("*.md")):
+                if artefato.name == "README.md":
+                    continue
+                fields, _ = read_frontmatter(artefato)
+                if fields is None:
+                    continue
+                # Artefato ja substituido nao e a evidencia da area.
+                if fields.get("superseded_by"):
+                    vivo = vivo or (artefato, fields)
+                    continue
+                vivo = (artefato, fields)
+                break
+            if vivo is None:
                 continue
-            fields, _ = read_frontmatter(artefatos[0])
+            artefato, fields = vivo
             presentes[pasta.name] = {
-                "status": (fields or {}).get("status") or "",
-                "evidence": artefatos[0].relative_to(root).as_posix(),
-                "by": (fields or {}).get("approved_by"),
-                "date": (fields or {}).get("approved_at"),
+                "status": fields.get("status") or "",
+                "evidence": artefato.relative_to(root).as_posix(),
+                "by": fields.get("approved_by"),
+                "date": fields.get("approved_at"),
             }
         # As fases que faltam entram como pendente. Sem elas o painel mente por
         # omissao: um projeto pela metade parece completo, porque so o que
@@ -622,10 +634,12 @@ def refresh_area_panels(root, state):
                 evidencia, gate.get("by") or "", gate.get("date") or ""))
         linhas[inicio:fim] = novas
 
-        entradas = por_area.get(area, [])
+        # O status geral olha as linhas desta area, nao o mapa global de gates:
+        # senao um painel com fases pendentes se declararia concluido porque
+        # outra area fechou aquelas fases.
         if obrigatorias is not None:
             faltam = [s for s in obrigatorias
-                      if (gates.get(s) or {}).get("status") != "approved"]
+                      if (presentes.get(s) or {}).get("status") != "approved"]
             geral = "em andamento" if faltam else "concluida"
         else:
             geral = "em andamento"

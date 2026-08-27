@@ -11,6 +11,7 @@ proofs/modo-a-claude-code.sh /tmp/prova-a   > proofs/out/prova-a.out
 proofs/modo-b-codex.sh       /tmp/prova-b   > proofs/out/prova-b.out
 proofs/adapters-none.sh      /tmp/prova-none > proofs/out/prova-none.out
 proofs/encadeamento.sh       /tmp/prova-chain > proofs/out/encadeamento.out
+proofs/fase-para-codigo.sh   /tmp/prova-fase  > proofs/out/fase-para-codigo.out
 proofs/modo-c-update.sh      /tmp/prova-b 1.1.0 > proofs/out/prova-c.out
 proofs/varredura.sh                          > proofs/out/varredura.out
 ```
