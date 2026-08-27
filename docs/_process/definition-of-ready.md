@@ -6,6 +6,8 @@ julgamento humano e entram no README da area.
 
 ## Verificado por maquina
 
+- [ ] O `tier` em `docs/STATE.md` e 1, 2 ou 3 (ST-05). Sem tier declarado o
+      kit nao sabe quais fases exigir, e o sequenciamento fica desligado.
 - [ ] Toda fase obrigatoria anterior, pelo tier declarado, esta `approved`
       (SQ-01).
 - [ ] `docs/STATE.md` e parseavel e tem todos os campos (ST-01).

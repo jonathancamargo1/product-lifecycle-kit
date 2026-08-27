@@ -268,4 +268,39 @@ if [ $CODIGO -eq 0 ]; then
 else
     info "Instalacao concluida, mas gate-check saiu com $CODIGO. Veja acima."
 fi
+
+# Vale tambem no --update: um projeto que vem de uma versao antiga do kit pode
+# nunca ter declarado o tier, e a partir do ST-05 todos os commits dele passam
+# a ser recusados pelo pre-commit. Ficar calado justamente ai seria o pior.
+if [ -f "$ALVO/docs/STATE.md" ]; then
+    # Aspas e espaco a esquerda sao aceitos pelo parser do kit, entao tambem
+    # precisam ser aceitos aqui: senao tier: "2" dispara um aviso mentiroso.
+    TIER_ATUAL="$(sed -n 's/^[[:space:]]*tier:[[:space:]]*\([^[:space:]#]*\).*/\1/p' "$ALVO/docs/STATE.md" | head -1 | tr -d "\"'\r")"
+    case "$TIER_ATUAL" in
+        1|2|3) ;;
+        *)
+            info ""
+            info "ACAO NECESSARIA: tier nao declarado em docs/STATE.md."
+            info "  valor atual: ${TIER_ATUAL:-(ausente)}"
+            info ""
+            info "Abra docs/STATE.md e preencha os dois campos:"
+            info "     project: <nome-do-projeto>"
+            info "     tier:    1, 2 ou 3     (ver docs/_process/tiers.md)"
+            info ""
+            info "O tier decide quais fases sao obrigatorias. Enquanto ele nao"
+            info "for 1, 2 ou 3, new-artifact recusa criar artefato e o"
+            info "gate-check acusa ST-05, o que faz o pre-commit recusar"
+            info "qualquer commit. Na duvida entre dois tiers, escolha o maior."
+            ;;
+    esac
+fi
+
+if [ "$UPDATE" -eq 0 ]; then
+    info ""
+    info "Para comecar, commite a instalacao e abra a primeira sessao:"
+    info "     git add -A && git commit -m \"instala o product-lifecycle-kit\""
+    info "     bin/lifecycle/session-open --agent <codex|claude-code|human>"
+    info ""
+    info "Todo o resto do protocolo esta em AGENTS.md, na raiz."
+fi
 exit $CODIGO

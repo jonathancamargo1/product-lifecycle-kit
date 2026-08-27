@@ -353,6 +353,9 @@ def resolve_phase(prefix):
 
 
 def required_phases(tier):
+    if isinstance(tier, bool):
+        # int(True) e 1, e um tier: true passaria como tier 1 sem ninguem ver.
+        return None
     try:
         return TIER_PHASES[int(tier)]
     except (KeyError, TypeError, ValueError):

@@ -14,6 +14,12 @@ nao aparece no painel da area e nao e exigida por `gate-check`.
 Em dois lugares, que precisam concordar: o campo `tier` em `docs/STATE.md` e o
 campo `Tier` no cabecalho do README da area.
 
+Declarar e obrigatorio, e verificado por maquina. Enquanto `tier` nao for 1, 2
+ou 3, `new-artifact` recusa criar artefato e `gate-check` acusa `ST-05`, o que
+faz o `pre-commit` recusar qualquer commit. Isso e proposital: sem tier, o kit
+nao sabe quais fases exigir, e um gate que nao exige nada e pior do que gate
+nenhum, porque parece que existe.
+
 ## Mudanca de tier
 
 O tier pode subir a qualquer momento, sem cerimonia: subir significa exigir
