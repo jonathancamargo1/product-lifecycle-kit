@@ -13,8 +13,25 @@ proofs/adapters-none.sh      /tmp/prova-none > proofs/out/prova-none.out
 proofs/encadeamento.sh       /tmp/prova-chain > proofs/out/encadeamento.out
 proofs/modo-c-update.sh      /tmp/prova-b 1.1.0 > proofs/out/prova-c.out
 proofs/varredura.sh                          > proofs/out/varredura.out
-python3 -m unittest discover bin/tests       > proofs/out/testes.out 2>&1
 ```
+
+Tres saidas nao vem de scripts de proofs/ e precisam do mesmo formato que os
+outros blocos: a primeira linha e o comando ecoado, que o gerador descarta ou
+mostra conforme o bloco. Gere assim:
+
+```sh
+{ printf '$ python3 -m unittest discover bin/tests\n'
+  python3 -m unittest discover bin/tests 2>&1
+  printf 'EXIT: %d\n' "$?"; } > proofs/out/testes.out
+
+{ printf '$ git ls-files\n'; git ls-files; } > proofs/out/arvore-kit.out
+{ printf '$ find . | sort\n'; cd /tmp/prova-a && find . | sort; } \
+    > proofs/out/arvore-alvo.out
+```
+
+`arvore-all.txt` e a arvore de um alvo recem instalado com `--adapters all`,
+sem linha de comando na frente. `readme-topo.md` e tudo o que vem antes da
+secao "Estrutura" no README atual.
 
 Depois monte a secao no README:
 
@@ -22,10 +39,9 @@ Depois monte a secao no README:
 python3 proofs/build-readme.py proofs/out
 ```
 
-`build-readme.py` tambem precisa de tres arquivos que descrevem a estrutura:
-`arvore-kit.out`, `arvore-all.txt`, `arvore-alvo.out`, e de `readme-topo.md`,
-que e tudo o que vem antes da secao "Estrutura" no README atual. Ele avisa qual
-esta faltando em vez de gerar um README pela metade.
+Ele avisa qual arquivo esta faltando em vez de gerar um README pela metade, e
+escreve sempre no `README.md` da raiz do kit, independente de onde voce o
+chamou.
 
 ## Ordem e efeitos colaterais
 

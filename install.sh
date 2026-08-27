@@ -275,7 +275,7 @@ fi
 if [ -f "$ALVO/docs/STATE.md" ]; then
     # Aspas e espaco a esquerda sao aceitos pelo parser do kit, entao tambem
     # precisam ser aceitos aqui: senao tier: "2" dispara um aviso mentiroso.
-    TIER_ATUAL="$(sed -n 's/^[[:space:]]*tier:[[:space:]]*\([^ #]*\).*/\1/p' "$ALVO/docs/STATE.md" | head -1 | tr -d "\"'")"
+    TIER_ATUAL="$(sed -n 's/^[[:space:]]*tier:[[:space:]]*\([^[:space:]#]*\).*/\1/p' "$ALVO/docs/STATE.md" | head -1 | tr -d "\"'\r")"
     case "$TIER_ATUAL" in
         1|2|3) ;;
         *)
@@ -291,15 +291,16 @@ if [ -f "$ALVO/docs/STATE.md" ]; then
             info "for 1, 2 ou 3, new-artifact recusa criar artefato e o"
             info "gate-check acusa ST-05, o que faz o pre-commit recusar"
             info "qualquer commit. Na duvida entre dois tiers, escolha o maior."
-            if [ "$UPDATE" -eq 0 ]; then
-                info ""
-                info "Depois disso, commite a instalacao e abra a primeira sessao:"
-                info "     git add -A && git commit -m \"instala o product-lifecycle-kit\""
-                info "     bin/lifecycle/session-open --agent <codex|claude-code|human>"
-                info ""
-                info "Todo o resto do protocolo esta em AGENTS.md, na raiz."
-            fi
             ;;
     esac
+fi
+
+if [ "$UPDATE" -eq 0 ]; then
+    info ""
+    info "Para comecar, commite a instalacao e abra a primeira sessao:"
+    info "     git add -A && git commit -m \"instala o product-lifecycle-kit\""
+    info "     bin/lifecycle/session-open --agent <codex|claude-code|human>"
+    info ""
+    info "Todo o resto do protocolo esta em AGENTS.md, na raiz."
 fi
 exit $CODIGO

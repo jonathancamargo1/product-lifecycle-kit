@@ -159,5 +159,6 @@ Kit privado, de uso interno. Nao ha promessa de compatibilidade entre majors: o
 `CHANGELOG.md` diz o que muda e `docs/KIT_VERSION` diz o que cada projeto tem
 instalado.
 """)
-Path("README.md").write_text("\n".join(partes) + "\n", encoding="utf-8")
+RAIZ = Path(__file__).resolve().parent.parent
+(RAIZ / "README.md").write_text("\n".join(partes) + "\n", encoding="utf-8")
 print("README reescrito")

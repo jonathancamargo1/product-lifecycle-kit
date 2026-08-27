@@ -306,6 +306,7 @@ install.sh
 proofs/
   README.md
   adapters-none.sh
+  build-readme.py
   encadeamento.sh
   modo-a-claude-code.sh
   modo-b-codex.sh
@@ -491,7 +492,7 @@ testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 $ python3 -m unittest discover bin/tests
 ...........................................................................................................................
 ----------------------------------------------------------------------
-Ran 123 tests in 15.322s
+Ran 123 tests in 16.070s
 
 OK
 EXIT: 0
@@ -539,7 +540,7 @@ for 1, 2 ou 3, new-artifact recusa criar artefato e o
 gate-check acusa ST-05, o que faz o pre-commit recusar
 qualquer commit. Na duvida entre dois tiers, escolha o maior.
 
-Depois disso, commite a instalacao e abra a primeira sessao:
+Para comecar, commite a instalacao e abra a primeira sessao:
      git add -A && git commit -m "instala o product-lifecycle-kit"
      bin/lifecycle/session-open --agent <codex|claude-code|human>
 
@@ -880,15 +881,15 @@ session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-ffa6551 humano aprova o gate 17-ship
-7a0873d sessao 04: 17-ship executei a fase 17-ship
-80cb1ea humano aprova o gate 14-review
-a7eef6d sessao 03: 14-review executei a fase 14-review
-a11a57c humano aprova o gate 13-build-log
-ff04d80 sessao 02: 13-build-log executei a fase 13-build
-6701f6f humano aprova o gate 01-contexto
-5303fb2 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-b1a222b instala o product-lifecycle-kit
+7ce0f40 humano aprova o gate 17-ship
+7daa0ef sessao 04: 17-ship executei a fase 17-ship
+fcc324b humano aprova o gate 14-review
+0e686a7 sessao 03: 14-review executei a fase 14-review
+a7e369c humano aprova o gate 13-build-log
+5615cd1 sessao 02: 13-build-log executei a fase 13-build
+c854ee7 humano aprova o gate 01-contexto
+8a85bac sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+ae8c815 instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -936,7 +937,7 @@ for 1, 2 ou 3, new-artifact recusa criar artefato e o
 gate-check acusa ST-05, o que faz o pre-commit recusar
 qualquer commit. Na duvida entre dois tiers, escolha o maior.
 
-Depois disso, commite a instalacao e abra a primeira sessao:
+Para comecar, commite a instalacao e abra a primeira sessao:
      git add -A && git commit -m "instala o product-lifecycle-kit"
      bin/lifecycle/session-open --agent <codex|claude-code|human>
 
@@ -1057,7 +1058,7 @@ EXIT: 0
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main 8693186] commit de codigo com a sessao aberta
+[main 3dc4f0c] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1075,7 +1076,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-202dd33 humano aprova o gate 01-contexto
+8bf5b82 humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1086,7 +1087,7 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main a1db23d] corrige o artefato aprovado sob a decisao D-0001
+[main 3be2d4c] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
@@ -1101,7 +1102,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main 10eafa6] adiciona uma nota solta
+[main d2e82c0] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1111,20 +1112,20 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-10eafa6 adiciona uma nota solta
-a1db23d corrige o artefato aprovado sob a decisao D-0001
-d06e0e3 sessao 06: 17-ship commit de codigo
-8693186 commit de codigo com a sessao aberta
-55946f1 sessao 05: 17-ship trabalho da sessao 05
-8431263 humano aprova o gate 17-ship
-6c2a613 sessao 04: 17-ship executei a fase 17-ship
-65c0717 humano aprova o gate 14-review
-7728252 sessao 03: 14-review executei a fase 14-review
-b81c29f humano aprova o gate 13-build-log
-2d108b2 sessao 02: 13-build-log executei a fase 13-build
-202dd33 humano aprova o gate 01-contexto
-483892f sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-4e807f0 instala o product-lifecycle-kit
+d2e82c0 adiciona uma nota solta
+3be2d4c corrige o artefato aprovado sob a decisao D-0001
+6686565 sessao 06: 17-ship commit de codigo
+3dc4f0c commit de codigo com a sessao aberta
+c83e072 sessao 05: 17-ship trabalho da sessao 05
+fd0ddd2 humano aprova o gate 17-ship
+65fb32c sessao 04: 17-ship executei a fase 17-ship
+a779217 humano aprova o gate 14-review
+f16bf93 sessao 03: 14-review executei a fase 14-review
+2feacb1 humano aprova o gate 13-build-log
+4d24f18 sessao 02: 13-build-log executei a fase 13-build
+8bf5b82 humano aprova o gate 01-contexto
+561b4ac sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+dae26d8 instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1241,7 +1242,7 @@ for 1, 2 ou 3, new-artifact recusa criar artefato e o
 gate-check acusa ST-05, o que faz o pre-commit recusar
 qualquer commit. Na duvida entre dois tiers, escolha o maior.
 
-Depois disso, commite a instalacao e abra a primeira sessao:
+Para comecar, commite a instalacao e abra a primeira sessao:
      git add -A && git commit -m "instala o product-lifecycle-kit"
      bin/lifecycle/session-open --agent <codex|claude-code|human>
 
@@ -1250,8 +1251,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 2341 Aug 27 13:12 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 27 13:12 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 2341 Aug 27 13:35 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 27 13:35 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1308,7 +1309,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) fd91eba] primeiro commit
+[main (root-commit) c9c5df9] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 a.txt
 EXIT: 0
@@ -1330,7 +1331,7 @@ $ grep -rn --exclude-dir=.git -e "<U+2014>" .
 EXIT: 1
 
 $ python3 varredura de codepoints em todos os arquivos versionados
-arquivos versionados verificados: 77
+arquivos versionados verificados: 78
 ocorrencias de travessao U+2014 ou emoji: 0
 EXIT: 0
 
