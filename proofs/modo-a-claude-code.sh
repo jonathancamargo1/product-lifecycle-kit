@@ -22,6 +22,7 @@ mostra ls -1 .git/hooks/pre-commit .git/hooks/commit-msg
 # Estado inicial do projeto, feito por humano.
 python3 - <<'PY'
 import sys
+sys.dont_write_bytecode = True  # nao sujar o alvo com __pycache__
 sys.path.insert(0, "bin/lifecycle")
 import _kitlib as kit
 state = kit.read_state(".")
@@ -35,6 +36,7 @@ git add -A && git commit -q -m "instala o product-lifecycle-kit" && echo "commit
 propoe() {  # $1 = path do artefato, $2 = slug do gate
     python3 - "$1" "$2" <<'PY'
 import sys
+sys.dont_write_bytecode = True  # nao sujar o alvo com __pycache__
 sys.path.insert(0, "bin/lifecycle")
 import _kitlib as kit
 from pathlib import Path
@@ -52,6 +54,7 @@ PY
 aprova() {  # $1 = path do artefato, $2 = slug do gate. Papel humano.
     python3 - "$1" "$2" <<'PY'
 import sys, datetime
+sys.dont_write_bytecode = True  # nao sujar o alvo com __pycache__
 sys.path.insert(0, "bin/lifecycle")
 import _kitlib as kit
 from pathlib import Path

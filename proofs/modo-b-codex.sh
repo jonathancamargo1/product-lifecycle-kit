@@ -25,6 +25,7 @@ printf 'EXIT: %d\n' "$?"
 
 python3 - <<'PY'
 import sys
+sys.dont_write_bytecode = True  # nao sujar o alvo com __pycache__
 sys.path.insert(0, "bin/lifecycle")
 import _kitlib as kit
 state = kit.read_state(".")
@@ -37,6 +38,7 @@ git add -A && git commit -q -m "instala o product-lifecycle-kit" && echo "commit
 propoe() {
     python3 - "$1" "$2" <<'PY'
 import sys
+sys.dont_write_bytecode = True  # nao sujar o alvo com __pycache__
 sys.path.insert(0, "bin/lifecycle")
 import _kitlib as kit
 from pathlib import Path
@@ -54,6 +56,7 @@ PY
 aprova() {
     python3 - "$1" "$2" <<'PY'
 import sys, datetime
+sys.dont_write_bytecode = True  # nao sujar o alvo com __pycache__
 sys.path.insert(0, "bin/lifecycle")
 import _kitlib as kit
 from pathlib import Path

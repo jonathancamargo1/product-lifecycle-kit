@@ -22,6 +22,7 @@ titulo "1. Instalacao, tier 2"
 "$KIT/install.sh" . --adapters none >/dev/null 2>&1
 python3 - <<'PY'
 import sys
+sys.dont_write_bytecode = True  # nao sujar o alvo com __pycache__
 sys.path.insert(0, "bin/lifecycle")
 import _kitlib as kit
 s = kit.read_state("."); s.update({"project": "prova-fase", "tier": 2})

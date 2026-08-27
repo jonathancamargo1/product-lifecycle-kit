@@ -12,27 +12,34 @@ proofs/modo-b-codex.sh       /tmp/prova-b   > proofs/out/prova-b.out
 proofs/adapters-none.sh      /tmp/prova-none > proofs/out/prova-none.out
 proofs/encadeamento.sh       /tmp/prova-chain > proofs/out/encadeamento.out
 proofs/fase-para-codigo.sh   /tmp/prova-fase  > proofs/out/fase-para-codigo.out
-proofs/modo-c-update.sh      /tmp/prova-b 1.1.0 > proofs/out/prova-c.out
+proofs/modo-c-update.sh      /tmp/prova-b 1.2.0 > proofs/out/prova-c.out
 proofs/varredura.sh                          > proofs/out/varredura.out
 ```
 
-Tres saidas nao vem de scripts de proofs/ e precisam do mesmo formato que os
-outros blocos: a primeira linha e o comando ecoado, que o gerador descarta ou
-mostra conforme o bloco. Gere assim:
+Duas saidas nao vem dos scripts acima. Os testes:
 
 ```sh
 { printf '$ python3 -m unittest discover bin/tests\n'
   python3 -m unittest discover bin/tests 2>&1
   printf 'EXIT: %d\n' "$?"; } > proofs/out/testes.out
-
-{ printf '$ git ls-files\n'; git ls-files; } > proofs/out/arvore-kit.out
-{ printf '$ find . | sort\n'; cd /tmp/prova-a && find . | sort; } \
-    > proofs/out/arvore-alvo.out
 ```
 
-`arvore-all.txt` e a arvore de um alvo recem instalado com `--adapters all`,
-sem linha de comando na frente. `readme-topo.md` e tudo o que vem antes da
-secao "Estrutura" no README atual.
+E as tres arvores da secao "Estrutura", que `arvores.sh` gera de uma vez. Ele
+precisa de um alvo instalado com `--adapters all`, que nenhum outro script
+produz:
+
+```sh
+rm -rf /tmp/prova-all && mkdir -p /tmp/prova-all && git -C /tmp/prova-all init -q
+./install.sh /tmp/prova-all --adapters all
+proofs/arvores.sh /tmp/prova-all /tmp/prova-a
+```
+
+As tres tem formatos diferentes e o `build-readme.py` conta com isso: a do kit
+e indentada, a do alvo recem instalado e plana sem `./` na frente, e a do modo
+A e a saida crua de `find`. Rode `arvores.sh` com tudo ja em staging: a arvore
+do kit sai de `git ls-files`, entao arquivo novo fora do index nao aparece.
+
+`readme-topo.md` e tudo o que vem antes da secao "Estrutura" no README atual.
 
 Depois monte a secao no README:
 
