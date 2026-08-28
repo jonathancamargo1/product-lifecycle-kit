@@ -667,9 +667,9 @@ testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 
 ````text
 $ python3 -m unittest discover bin/tests
-......................................................................................................................................................................................................
+..........................................................................................................................................................................................................
 ----------------------------------------------------------------------
-Ran 198 tests in 41.650s
+Ran 202 tests in 38.731s
 
 OK
 EXIT: 0
@@ -1064,15 +1064,15 @@ session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-64fbe0e humano aprova o gate 17-ship
-3ed10f1 sessao 04: 17-ship executei a fase 17-ship
-1b531c3 humano aprova o gate 14-review
-2b0fe0c sessao 03: 14-review executei a fase 14-review
-ea2cb52 humano aprova o gate 13-build-log
-4dc9fc4 sessao 02: 13-build-log executei a fase 13-build
-24254ce humano aprova o gate 01-contexto
-0b388bd sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-3f5bbf5 instala o product-lifecycle-kit
+f4c8434 humano aprova o gate 17-ship
+84dc3ef sessao 04: 17-ship executei a fase 17-ship
+dc43e12 humano aprova o gate 14-review
+83fd496 sessao 03: 14-review executei a fase 14-review
+a51d1e7 humano aprova o gate 13-build-log
+158d776 sessao 02: 13-build-log executei a fase 13-build
+95b0286 humano aprova o gate 01-contexto
+1d48cf8 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+6127d07 instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1243,7 +1243,7 @@ EXIT: 0
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main 9c51149] commit de codigo com a sessao aberta
+[main 6c3a087] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1261,7 +1261,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-e26a736 humano aprova o gate 01-contexto
+b8920c3 humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1272,7 +1272,7 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main 7b0fd1b] corrige o artefato aprovado sob a decisao D-0001
+[main 3acbfbc] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
@@ -1287,7 +1287,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main 8fc20b8] adiciona uma nota solta
+[main 2763256] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1297,20 +1297,20 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-8fc20b8 adiciona uma nota solta
-7b0fd1b corrige o artefato aprovado sob a decisao D-0001
-f5a8b18 sessao 06: 17-ship commit de codigo
-9c51149 commit de codigo com a sessao aberta
-3989b02 sessao 05: 17-ship trabalho da sessao 05
-f21d2eb humano aprova o gate 17-ship
-cd7242a sessao 04: 17-ship executei a fase 17-ship
-24557c2 humano aprova o gate 14-review
-0242726 sessao 03: 14-review executei a fase 14-review
-5eadf85 humano aprova o gate 13-build-log
-adc5274 sessao 02: 13-build-log executei a fase 13-build
-e26a736 humano aprova o gate 01-contexto
-9dbbe7c sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-4feb7da instala o product-lifecycle-kit
+2763256 adiciona uma nota solta
+3acbfbc corrige o artefato aprovado sob a decisao D-0001
+1afd41e sessao 06: 17-ship commit de codigo
+6c3a087 commit de codigo com a sessao aberta
+a164ed9 sessao 05: 17-ship trabalho da sessao 05
+3b9ee98 humano aprova o gate 17-ship
+9f3c8c4 sessao 04: 17-ship executei a fase 17-ship
+4d546e1 humano aprova o gate 14-review
+13e0557 sessao 03: 14-review executei a fase 14-review
+fd6ccc2 humano aprova o gate 13-build-log
+2462fa7 sessao 02: 13-build-log executei a fase 13-build
+b8920c3 humano aprova o gate 01-contexto
+c7f026d sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+976d12b instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1389,8 +1389,6 @@ EXIT: 0
 
 ----- 6. O kit real continua na versao de antes -----
 $ git -C /home/user/product-lifecycle-kit status --short VERSION CHANGELOG.md bin/_kitlib.py
-M  CHANGELOG.md
-M  VERSION
 M  bin/_kitlib.py
 EXIT: 0
 
@@ -1568,8 +1566,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 8692 Aug 28 01:08 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 28 01:08 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 8692 Aug 28 01:17 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 28 01:17 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1688,7 +1686,7 @@ $ git commit -m corrige timeout do gateway
 
 Sem-fase: hotfix de producao, autorizado por Jonathan Camargo
 gate-check: nenhuma ocorrencia.
-[main 298ff0c] corrige timeout do gateway
+[main b57b056] corrige timeout do gateway
  1 file changed, 1 insertion(+)
 EXIT: 0
 
@@ -1709,7 +1707,7 @@ $ python3 bin/lifecycle/gate-check
 gate-check: 0 erro(s), 1 aviso(s).
 EXIT: 0
 $ git log --grep ^Sem-fase: --oneline
-298ff0c corrige timeout do gateway
+b57b056 corrige timeout do gateway
 EXIT: 0
 ````
 
@@ -1751,7 +1749,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) aa8bf97] primeiro commit
+[main (root-commit) 4b1fd6d] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 docs/nota.md
 EXIT: 0

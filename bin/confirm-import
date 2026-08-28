@@ -26,6 +26,7 @@ toca gates de um projeto com import_mode reverse, e so enquanto ele valer.
 import argparse
 import datetime
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -70,8 +71,17 @@ def a_confirmar(state):
                   if (gate or {}).get("status") == "proposed")
 
 
-def marca_artefato(path, nome, hoje):
-    linhas = path.read_text(encoding="utf-8").splitlines()
+def texto_aprovado(path, nome, hoje):
+    """Conteudo do artefato ja marcado, sem escrever nada ainda.
+
+    Separado da escrita de proposito. Confirmar vinte fases e uma operacao so:
+    falhar no artefato 7 depois de gravar 6 deixaria seis artefatos approved
+    contra um STATE.md que ainda diz proposed, e o gate-check acusaria ST-02
+    nos seis. Calcular tudo antes de gravar qualquer coisa evita esse estado
+    pela metade.
+    """
+    original = path.read_text(encoding="utf-8")
+    linhas = original.splitlines()
     fim = None
     for indice, linha in enumerate(linhas[1:], start=1):
         if linha.strip() == "---":
@@ -86,7 +96,7 @@ def marca_artefato(path, nome, hoje):
             linhas[indice] = "approved_by: %s" % kit.emit_scalar(nome)
         elif linhas[indice].startswith("approved_at:"):
             linhas[indice] = "approved_at: %s" % hoje
-    path.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    return original, "\n".join(linhas) + "\n"
 
 
 def main(argv=None):
@@ -109,6 +119,18 @@ def main(argv=None):
     alvos = a_confirmar(state)
     if not alvos:
         kit.die("confirm-import: nenhum gate em proposed para confirmar.", 1)
+
+    # gate-check antes de qualquer escrita, como o session-close aprende a
+    # fazer: confirmar vinte gates sobre um estado ja quebrado entrega ao
+    # humano vinte aprovacoes para desfazer a mao.
+    verificacao = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve().parent / "gate-check")],
+        cwd=str(root), capture_output=True, text=True)
+    if verificacao.returncode != 0:
+        print("confirm-import: gate-check nao esta limpo. Resolva antes de "
+              "confirmar.\n")
+        print(verificacao.stdout.strip())
+        return 1
 
     problemas = pendencias(root, state)
     if problemas:
@@ -138,18 +160,44 @@ def main(argv=None):
                 "aprovacao, nao quem aprova." % nome, 1)
 
     hoje = datetime.date.today().isoformat()
+
+    # Calcula tudo primeiro. Se algum artefato nao der, nada foi escrito.
+    planejado = []
     for slug in alvos:
-        gate = state["gates"][slug]
-        marca_artefato(Path(root) / gate["evidence"], nome, hoje)
-        gate.update({"status": "approved", "by": nome, "date": hoje,
-                     "method": kit.METODO_BLOCO})
-    state["import_mode"] = None
-    kit.write_state(root, state)
+        caminho = Path(root) / state["gates"][slug]["evidence"]
+        try:
+            original, aprovado = texto_aprovado(caminho, nome, hoje)
+        except (OSError, ValueError) as erro:
+            kit.die("confirm-import: %s. Nada foi escrito." % erro, 1)
+        planejado.append((slug, caminho, original, aprovado))
+
+    escritos = []
+    try:
+        for slug, caminho, _, aprovado in planejado:
+            caminho.write_text(aprovado, encoding="utf-8")
+            escritos.append(slug)
+            state["gates"][slug].update({"status": "approved", "by": nome,
+                                         "date": hoje,
+                                         "method": kit.METODO_BLOCO})
+        state["import_mode"] = None
+        kit.write_state(root, state)
+    except OSError as erro:
+        for slug, caminho, original, _ in planejado:
+            if slug in escritos:
+                try:
+                    caminho.write_text(original, encoding="utf-8")
+                except OSError:
+                    pass
+        kit.die("confirm-import: falhou ao gravar (%s). Os artefatos ja "
+                "marcados foram desfeitos e docs/STATE.md nao mudou." % erro, 1)
 
     print("\n%d gates confirmados em bloco por %s em %s." % (len(alvos), nome, hoje))
     print("import_mode baixado: o projeto passa a viver no modo normal, e daqui")
     print("em diante gate se aprova um a um.")
-    print("Commite a confirmacao. Ela e o registro de que isso aconteceu.")
+    if state.get("session_open"):
+        print("Sessao aberta: o session-close commita a confirmacao.")
+    else:
+        print("Commite a confirmacao. Ela e o registro de que isso aconteceu.")
     return 0
 
 

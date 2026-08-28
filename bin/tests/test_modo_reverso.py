@@ -18,9 +18,11 @@ class ReversoBase(KitTestCase):
             [sys.executable, str(BIN / script)] + [str(a) for a in args],
             cwd=str(self.root), capture_output=True, text=True)
 
-    def artefato(self, slug, nome, ponteiros=None, status="proposed"):
+    def artefato(self, slug, nome, ponteiros=None, status="proposed",
+                 inputs=None):
         campos = {"phase": slug, "area": "nucleo", "title": nome,
-                  "status": status, "owner": "Jonathan Camargo", "inputs": [],
+                  "status": status, "owner": "Jonathan Camargo",
+                  "inputs": list(inputs or []),
                   "approved_by": None, "approved_at": None,
                   "superseded_by": None}
         if ponteiros is not None:
@@ -201,3 +203,84 @@ class TestPlanReverso(ReversoBase):
     def test_fora_do_modo_reverso_o_plan_nao_muda(self):
         self.write_state(dict(DEFAULT_STATE))
         self.assertNotIn("Modo reverso", self.rodar("plan").stdout)
+
+
+class TestCompatibilidadeComProjetoAntigo(ReversoBase):
+    """import_mode nasceu na 1.2.0, e o --update nao toca em docs/STATE.md.
+
+    Um projeto instalado antes dela nao tem a chave. Se ST-01 cobrasse o campo,
+    todo commit desse projeto morreria depois de atualizar o kit, que e
+    exatamente o modo de falha que este teste existe para impedir.
+    """
+
+    def test_state_sem_import_mode_nao_quebra(self):
+        self.write_state(dict(DEFAULT_STATE))
+        caminho = self.root / "docs" / "STATE.md"
+        texto = "\n".join(l for l in caminho.read_text(encoding="utf-8").splitlines()
+                          if not l.startswith("import_mode:"))
+        caminho.write_text(texto + "\n", encoding="utf-8")
+        self.assertNotIn("import_mode", caminho.read_text(encoding="utf-8"))
+
+        saida = self.rodar("gate-check")
+        self.assertEqual(saida.returncode, 0,
+                         "projeto sem o campo novo parou de commitar: " + saida.stdout)
+        self.assertNotIn("ST-01", saida.stdout)
+
+    def test_ausente_vale_como_modo_normal(self):
+        self.write_state(dict(DEFAULT_STATE))
+        caminho = self.root / "docs" / "STATE.md"
+        texto = "\n".join(l for l in caminho.read_text(encoding="utf-8").splitlines()
+                          if not l.startswith("import_mode:"))
+        caminho.write_text(texto + "\n", encoding="utf-8")
+        self.assertNotIn("Modo reverso", self.rodar("plan").stdout)
+        self.assertNotEqual(self.rodar("confirm-import", "--by", "Jonathan Camargo")
+                            .returncode, 0)
+
+
+class TestConfirmImportAtomico(ReversoBase):
+    """Confirmar vinte fases e uma operacao so, nao vinte."""
+
+    def montar_dois(self):
+        bom = self.artefato("01-contexto", "contexto", ["src/app.py"])
+        # IN-03: fora de 01 e 02, inputs vazio e erro. No modo reverso a
+        # reconstrucao encadeia igual, senao o gate-check recusa.
+        ruim = self.artefato("13-build-log", "build", ["src/app.py"],
+                             inputs=[bom])
+        state = dict(DEFAULT_STATE)
+        state.update({
+            "import_mode": "reverse",
+            "gates": {
+                "01-contexto": {"status": "proposed", "evidence": bom,
+                                "by": None, "date": None},
+                "13-build-log": {"status": "proposed", "evidence": ruim,
+                                 "by": None, "date": None}},
+        })
+        self.write_state(state)
+        return bom, ruim
+
+    def test_planejamento_nao_escreve_antes_de_conferir_tudo(self):
+        """texto_aprovado calcula sem gravar: e o que impede o estado pela metade.
+
+        O ramo de rollback em si nao da para exercitar aqui, porque o container
+        roda como root e permissao de arquivo nao injeta falha de escrita.
+        Fica sem cobertura, e isso esta dito no PR em vez de disfarcado.
+        """
+        bom, ruim = self.montar_dois()
+        antes = [(self.root / rel).read_text(encoding="utf-8")
+                 for rel in (bom, ruim)]
+        saida = self.rodar("confirm-import", "--dry-run")
+        self.assertEqual(saida.returncode, 0, saida.stdout + saida.stderr)
+        depois = [(self.root / rel).read_text(encoding="utf-8")
+                  for rel in (bom, ruim)]
+        self.assertEqual(antes, depois, "dry-run tocou nos artefatos")
+
+    def test_gate_check_sujo_bloqueia_a_confirmacao(self):
+        bom, _ = self.montar_dois()
+        # evidence apontando para path inexistente: ST-03.
+        state = self.read_state()
+        state["gates"]["13-build-log"]["evidence"] = "docs/areas/nucleo/nao-existe.md"
+        self.write_state(state)
+        saida = self.rodar("confirm-import", "--by", "Jonathan Camargo")
+        self.assertEqual(saida.returncode, 1)
+        self.assertIn("gate-check", saida.stdout)
+        self.assertIn("status: proposed", (self.root / bom).read_text(encoding="utf-8"))

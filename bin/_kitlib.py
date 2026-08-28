@@ -409,6 +409,11 @@ def read_state(root):
         state["open_questions"] = []
     if state.get("gates") is None:
         state["gates"] = {}
+    # Campo novo na 1.2.0. Um projeto instalado antes dela nao tem a chave, e o
+    # --update tem proibido tocar em docs/STATE.md: se ST-01 cobrasse o campo,
+    # todo commit desse projeto morreria depois de atualizar o kit. Ausente
+    # significa nulo, e a chave aparece sozinha na proxima escrita do estado.
+    state.setdefault("import_mode", None)
     return state
 
 
