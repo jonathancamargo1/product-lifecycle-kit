@@ -6,6 +6,7 @@ artefatos, onde status existe.
 ```yaml
 project: null
 tier: null                    # 1 | 2 | 3
+import_mode: null             # reverse enquanto a importacao nao foi confirmada
 current_phase: null
 current_area: null
 next_action: null             # uma frase imperativa

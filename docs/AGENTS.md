@@ -5,9 +5,8 @@ arquivo; o Codex le direto daqui.
 
 ## Protocolo de sessao
 
-Primeira acao da sessao e `session-open`. Ultima e `session-close`. Sem
-excecao. Se a saida de `session-open` nao esta no seu contexto, rode antes de
-qualquer outra coisa.
+Primeira acao da sessao e `session-open`, ultima e `session-close`, sem
+excecao. Se a saida de `session-open` nao esta no seu contexto, rode ja.
 
 | Acao | Qualquer runtime | Claude Code tambem |
 |---|---|---|
@@ -19,20 +18,23 @@ qualquer outra coisa.
 | Fechar sessao | `bin/lifecycle/session-close --handoff <arquivo>` | `/session-close` |
 
 `--inputs` e obrigatorio fora das fases 01 e 02. Um artefato por gate: para
-substituir um que ja existe, use `--supersede`.
-
-O handoff vai num arquivo temporario fora de `docs/_handoffs/`, com tres
-secoes nesta ordem e no maximo 15 linhas: `## Fiz`, `## Falta`, `## Cuidado
-com`. O script move para o lugar certo.
+substituir um existente, use `--supersede`. Handoff vai num arquivo temporario
+fora de `docs/_handoffs/`, no maximo 15 linhas, com `## Fiz`, `## Falta`,
+`## Cuidado com`. O script move para o lugar.
 
 ## Codigo so da fase 13 em diante
 
-Commit que toca codigo do produto exige a fase corrente ser 13-build-log ou
-posterior. O `commit-msg` recusa fora disso e explica o que se perde. Se
-precisar entrar assim mesmo, **pergunte ao humano e espere a resposta**; com a
-autorizacao dele, registre no commit a linha `Sem-fase: <por que entra sem
-fase, e quem autorizou>`. Nunca escreva esse trailer sozinho: autorizar a si
-mesmo e o mesmo que aprovar o proprio gate, e a regra 4 proibe.
+Commit que toca codigo do produto exige fase corrente 13-build-log ou depois;
+o `commit-msg` recusa e explica o que se perde. Para entrar assim mesmo,
+**pergunte ao humano e espere**: com a autorizacao dele, registre no commit
+`Sem-fase: <motivo, e quem autorizou>`. Nunca escreva esse trailer sozinho: e
+aprovar o proprio gate, que a regra 4 proibe.
+
+## Modo reverso
+
+Com `import_mode: reverse` o gate por fase esta suspenso: reconstrua as fases
+vencidas em `proposed`, cada afirmacao apontando em `reconstructed_from` para o
+que a sustenta. Sem evidencia vira `open_question`. Confirmar em bloco e humano.
 
 ## Regras
 
@@ -53,8 +55,6 @@ mesmo e o mesmo que aprovar o proprio gate, e a regra 4 proibe.
 ## O que voce pode e nao pode editar
 
 Pode: artefatos `draft` ou `review` em `docs/areas/`, `docs/STATE.md`,
-handoffs, e o codigo do projeto. Nao pode: `docs/_context/CONTEXT.md`, ADR
-`accepted`, artefato `approved`, `docs/_process/` inteiro, e este arquivo.
-
-Nunca aprove um gate. Nunca suponha regra de negocio. Nunca edite CONTEXT.md,
-ADR aceita, artefato aprovado ou docs/_process sem decisao humana registrada.
+handoffs, e o codigo do projeto. Nao pode, sem decisao humana registrada:
+`docs/_context/CONTEXT.md`, ADR `accepted`, artefato `approved`,
+`docs/_process/` e este arquivo.

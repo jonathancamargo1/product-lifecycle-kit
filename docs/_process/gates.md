@@ -30,6 +30,39 @@ Aprovar e sempre uma edicao dupla. Os dois lugares precisam concordar, e
 Nao existe script de aprovacao, e isso e proposital. Um `bin/approve`
 facilitaria justamente o que o principio 4 quer manter dificil e deliberado.
 
+## Confirmacao em bloco, no modo reverso
+
+Gate no modo normal e gate no modo reverso sao atos diferentes com o mesmo
+nome. No modo normal, aprovar e autorizar: o artefato e insumo da fase
+seguinte, e aprovar cedo compromete o que vem depois. No modo reverso nada
+esta sendo autorizado, porque a decisao ja aconteceu e esta no codigo. Aprovar
+ali e verificar uma reconstrucao.
+
+Exigir vinte autorizacoes para algo que ninguem esta autorizando e o desenho
+que produz carimbo automatico, e um `approved` carimbado e pior que um
+`proposed` honesto: mente para todo leitor futuro. Por isso, enquanto
+`import_mode` for `reverse`, o gate por fase fica suspenso e a confirmacao
+acontece uma vez, em bloco, com `confirm-import`.
+
+Muda a granularidade da deliberacao, nao a natureza dela:
+
+- quem confirma continua sendo humano. `confirm-import` recusa `--by` que
+  contenha `agent`, `codex`, `claude`, `ai` ou `bot`, igual ao FM-04.
+- toda afirmacao reconstruida carrega `reconstructed_from` no frontmatter, com
+  os ponteiros que a sustentam. Sem isso a confirmacao e inauditavel por
+  construcao: nao da nem para amostrar. `confirm-import` recusa, e `gate-check`
+  acusa `RV-01`.
+- pergunta em aberto sem resposta bloqueia a confirmacao. Intencao e nao-escopo
+  nunca sao confirmados em bloco, porque nunca estiveram nos artefatos: sao
+  resposta que um humano da na sessao.
+- o gate confirmado assim fica com `method: reverse-batch` no `STATE.md`. Um
+  leitor daqui a um ano precisa conseguir separar o que foi vivido do que foi
+  reconstruido, senao o proprio registro mente sobre a propria forca.
+
+`import_mode` cai sozinho na confirmacao. E marcador de importacao, com comeco
+e fim, nao um modo de operacao permanente: depois dele o projeto vive no modo
+normal e gate se aprova um a um.
+
 ## Substituicao
 
 Um gate tem um artefato. Quando um artefato e substituido, o antigo recebe

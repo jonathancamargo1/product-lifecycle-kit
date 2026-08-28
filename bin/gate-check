@@ -370,6 +370,57 @@ def check_code_phase(root, report):
                  % (quantos, kit.CODE_TRAILER))
 
 
+def check_reverse_import(root, report, state):
+    """RV-01 erro, RV-02 aviso.
+
+    Confirmacao em bloco e verificacao de uma reconstrucao, nao autorizacao de
+    uma decisao: a decisao ja aconteceu, esta no codigo, e o humano assina uma
+    vez em vez de vinte. O preco disso e que cada afirmacao precisa apontar
+    para a evidencia que a sustenta. Sem ponteiro, a confirmacao em bloco e
+    inauditavel por construcao: nao da nem para amostrar.
+    """
+    if state is None or not hasattr(kit, "gate_em_bloco"):
+        return
+    gates = state.get("gates") or {}
+    if not isinstance(gates, dict):
+        return
+    for slug in sorted(gates):
+        gate = gates[slug] or {}
+        if not kit.gate_em_bloco(gate):
+            continue
+        evidencia = gate.get("evidence")
+        if not evidencia:
+            report.erro("RV-01", "docs/STATE.md", state_line(root, "gates"),
+                        "gate %s confirmado em bloco sem artefato" % slug)
+            continue
+        artefato = Path(root) / evidencia
+        if not artefato.exists():
+            continue
+        front, _ = kit.read_frontmatter(artefato)
+        if front is None:
+            continue  # FM-01 ja reclama de frontmatter quebrado
+        if not kit.ponteiros_de_evidencia(front):
+            report.erro("RV-01", evidencia,
+                        kit.frontmatter_line(artefato, kit.CAMPO_EVIDENCIA) or 1,
+                        "confirmado em bloco sem %s. Uma reconstrucao sem "
+                        "ponteiro para o que a sustenta nao e auditavel."
+                        % kit.CAMPO_EVIDENCIA)
+
+    # O marcador e de importacao, nao de operacao: tem que cair sozinho.
+    if not kit.import_reverso(state):
+        return
+    obrigatorias = kit.required_phases(state.get("tier"))
+    if not obrigatorias:
+        return
+    pendentes = [f for f in obrigatorias
+                 if (gates.get(f) or {}).get("status") != "approved"]
+    if not pendentes:
+        report.aviso("RV-02", "docs/STATE.md", state_line(root, "import_mode"),
+                     "importacao terminou (todas as fases do tier aprovadas) e "
+                     "import_mode continua reverse. Rode confirm-import ou "
+                     "limpe o campo.")
+
+
 def check_kit_version(root, report):
     """KV-01."""
     path = Path(root) / "docs" / "KIT_VERSION"
@@ -415,6 +466,7 @@ def main(argv=None):
     check_vocabulary(root, report)
     check_dirs(root, report)
     check_code_phase(root, report)
+    check_reverse_import(root, report, state)
     check_kit_version(root, report)
 
     codigo = report.exit_code

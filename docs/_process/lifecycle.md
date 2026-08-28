@@ -71,3 +71,14 @@ Quando o kit e instalado num projeto em andamento, as fases ja vencidas sao
 preenchidas a partir do que existe (codigo, documento, produto no ar). Cada
 template tem a secao "Modo reverso" com a instrucao especifica. O que nao for
 possivel recuperar vira `open_question` em `docs/STATE.md`, nunca suposicao.
+
+Instale com `install.sh <alvo> --reverso`. Isso grava `import_mode: reverse` e
+suspende o gate por fase: o agente reconstroi tudo e deixa em `proposed`, cada
+afirmacao com seus ponteiros em `reconstructed_from`. A confirmacao acontece
+uma vez, em bloco, numa sessao com um humano. Ver `gates.md`.
+
+`bin/lifecycle/plan` muda no modo reverso: em vez da tabela de fases, abre pela
+duvida. Perguntas em aberto primeiro, depois reconstrucoes sem ponteiro, depois
+as com ponteiro para voce amostrar. Vinte documentos em ordem numa sessao so e
+a receita da leitura diagonal, que e o que a confirmacao em bloco precisa
+evitar para nao virar carimbo com passo extra.

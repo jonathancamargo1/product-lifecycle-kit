@@ -49,6 +49,7 @@ def monta_frontmatter(fase, area, titulo, owner, inputs):
     else:
         linhas.append("inputs: []")
     linhas += ["approved_by: null", "approved_at: null", "superseded_by: null",
+               "%s: []" % kit.CAMPO_EVIDENCIA,
                "---"]
     return "\n".join(linhas)
 
