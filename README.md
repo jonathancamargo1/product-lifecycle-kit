@@ -120,22 +120,23 @@ Entao leve os arquivos por qualquer meio, e rode o script de dentro da copia:
 
 Qualquer transporte serve, porque nenhum deles e requisito: tarball, `rsync`,
 copia de pasta, volume montado, branch de vendor no proprio alvo. Como o kit e
-publico, o tarball de uma versao baixa sem credencial nenhuma:
+publico, o tarball de uma versao baixa sem credencial nenhuma. Troque `<tag>`
+pela versao que voce quer; as que existem estao em Releases:
 
 ```sh
-curl -L https://github.com/jonathancamargo1/product-lifecycle-kit/archive/refs/tags/v1.1.0.tar.gz | tar xz
+curl -L https://github.com/jonathancamargo1/product-lifecycle-kit/archive/refs/tags/<tag>.tar.gz | tar xz
 ```
 
 Numa maquina que ja tenha o clone, o mesmo tarball sai offline:
 
 ```sh
-git -C ~/product-lifecycle-kit archive --format=tar.gz v1.1.0 > plk-1.1.0.tar.gz
+git -C ~/product-lifecycle-kit archive --format=tar.gz <tag> > plk.tar.gz
 ```
 
 E do outro lado:
 
 ```sh
-mkdir -p /tmp/plk && tar -C /tmp/plk -xzf plk-1.1.0.tar.gz
+mkdir -p /tmp/plk && tar -C /tmp/plk -xzf plk.tar.gz
 /tmp/plk/install.sh /caminho/do/repo-alvo --adapters all
 ```
 
@@ -248,6 +249,51 @@ contenha `agent`, `codex`, `claude`, `ai` ou `bot` (FM-04).
 Nao existe `bin/approve`, e isso e proposital. Um script de aprovacao
 facilitaria justamente o que o kit quer manter dificil e deliberado.
 
+## Instalar num projeto que ja existe: o modo reverso
+
+```sh
+~/product-lifecycle-kit/install.sh . --reverso --adapters all
+```
+
+Isso grava `import_mode: reverse` e muda uma coisa: o gate por fase fica
+suspenso. O agente reconstroi as fases ja vencidas a partir do que existe e
+deixa tudo em `proposed`. A confirmacao acontece uma vez, em bloco, numa sessao
+com um humano.
+
+Por que nao vinte gates. Gate no modo normal e gate no modo reverso sao atos
+diferentes com o mesmo nome. No modo normal, aprovar e autorizar: o artefato e
+insumo da fase seguinte, e aprovar cedo compromete o que vem depois. No modo
+reverso nada esta sendo autorizado, porque a decisao ja aconteceu e esta no
+codigo. Aprovar ali e verificar uma reconstrucao. Exigir vinte autorizacoes
+para algo que ninguem esta autorizando e o desenho que produz carimbo
+automatico, e um `approved` carimbado e pior que um `proposed` honesto: mente
+para todo leitor futuro.
+
+Muda a granularidade da deliberacao, nao a natureza dela:
+
+- **Quem confirma continua sendo humano.** `confirm-import` recusa `--by` com
+  `agent`, `codex`, `claude`, `ai` ou `bot`, igual ao FM-04. Nao existe slash
+  command para ele em nenhum adaptador, de proposito: nao e comando de agente.
+- **Toda afirmacao carrega o ponteiro da evidencia**, em `reconstructed_from`.
+  Sem isso a confirmacao em bloco e inauditavel por construcao: voce nao tem
+  nem como amostrar. `confirm-import` recusa e `gate-check` acusa `RV-01`.
+- **Pergunta em aberto bloqueia.** Intencao e nao-escopo nunca sao confirmados
+  em bloco, porque nunca estiveram nos artefatos: sao resposta que um humano da
+  na sessao. Esse e o trabalho dela, nao o residuo.
+- **A procedencia fica gravada.** O gate confirmado assim leva
+  `method: reverse-batch`. Um leitor daqui a um ano precisa separar o que foi
+  vivido do que foi reconstruido, senao o registro mente sobre a propria forca.
+
+`bin/lifecycle/plan` muda no modo reverso: em vez da tabela de fases, abre pela
+duvida. Perguntas em aberto primeiro, depois reconstrucoes sem ponteiro, depois
+as com ponteiro para voce amostrar. Vinte documentos em ordem numa sessao so e
+a receita da leitura diagonal, que e exatamente o que a confirmacao em bloco
+precisa evitar para nao virar carimbo com um passo a mais.
+
+Confirmada a importacao, `import_mode` cai sozinho e o projeto passa a viver no
+modo normal, com gate um a um. E marcador de importacao, com comeco e fim, nao
+um modo de operacao permanente.
+
 ## As 20 fases e os tiers
 
 As fases estao em `docs/_process/lifecycle.md`, uma por template em
@@ -287,12 +333,14 @@ comecar, e `--json` para consumo por script.
 | DC-01 | `PENDING` em `decisions.log` sem `blocked_by` correspondente | erro |
 | VC-01 | Termo proibido pelo glossario aparece no codigo ou nos documentos | erro |
 | PH-01 | Commits de codigo que entraram sem fase de build | aviso |
+| RV-01 | Gate confirmado em bloco sem `reconstructed_from` no artefato | erro |
+| RV-02 | `import_mode: reverse` esquecido depois de a importacao terminar | aviso |
 | DR-01 | Pasta vazia sob `docs/areas/` | aviso |
 | KV-01 | `docs/KIT_VERSION` ausente ou incompativel com os scripts | aviso |
 
-Avisos nao alteram o exit code. `IN-03`, `ST-04`, `ST-05` e `PH-01` nao
-constam da tabela da especificacao original; estao registrados em
-`OPEN_QUESTIONS.md`, Q6, Q21, Q27 e Q29.
+Avisos nao alteram o exit code. `IN-03`, `ST-04`, `ST-05`, `PH-01`, `RV-01` e
+`RV-02` nao constam da tabela da especificacao original; estao registrados em
+`OPEN_QUESTIONS.md`, Q6, Q21, Q27, Q29, Q30 e Q31.
 
 ## Adaptador versus enforcement comum
 
@@ -348,6 +396,7 @@ adapters/
     README.md
 bin/
   _kitlib.py
+  confirm-import
   decide
   gate-check
   guard-commit
@@ -364,6 +413,7 @@ bin/
     test_guards.py
     test_integracao.py
     test_kitlib.py
+    test_modo_reverso.py
     test_new_artifact.py
     test_plan.py
     test_session.py
@@ -427,6 +477,7 @@ proofs/
   modo-a-claude-code.sh
   modo-b-codex.sh
   modo-c-update.sh
+  modo-reverso.sh
   varredura.sh
 ````
 
@@ -452,6 +503,7 @@ CLAUDE.md
 bin
 bin/lifecycle
 bin/lifecycle/_kitlib.py
+bin/lifecycle/confirm-import
 bin/lifecycle/decide
 bin/lifecycle/gate-check
 bin/lifecycle/guard-commit
@@ -528,6 +580,7 @@ as quatro fases do tier 1 ja executadas. E a saida real do modo A:
 ./bin
 ./bin/lifecycle
 ./bin/lifecycle/_kitlib.py
+./bin/lifecycle/confirm-import
 ./bin/lifecycle/decide
 ./bin/lifecycle/gate-check
 ./bin/lifecycle/guard-commit
@@ -547,10 +600,10 @@ as quatro fases do tier 1 ja executadas. E a saida real do modo A:
 ./docs/_context/decisions.log
 ./docs/_context/principles.md
 ./docs/_handoffs
-./docs/_handoffs/2026-08-27-sessao-01.md
-./docs/_handoffs/2026-08-27-sessao-02.md
-./docs/_handoffs/2026-08-27-sessao-03.md
-./docs/_handoffs/2026-08-27-sessao-04.md
+./docs/_handoffs/2026-08-28-sessao-01.md
+./docs/_handoffs/2026-08-28-sessao-02.md
+./docs/_handoffs/2026-08-28-sessao-03.md
+./docs/_handoffs/2026-08-28-sessao-04.md
 ./docs/_process
 ./docs/_process/code-paths.md
 ./docs/_process/definition-of-done.md
@@ -601,7 +654,7 @@ tenha. Os testes do kit nao sao copiados para o alvo.
 
 ## Prova de funcionamento
 
-Tudo abaixo e saida real, colada sem edicao, gerada com o kit na versao 1.1.0.
+Tudo abaixo e saida real, colada sem edicao, gerada com o kit na versao 1.2.0.
 Os scripts que produzem cada bloco estao em `proofs/` e podem ser rodados de
 novo do zero. Nenhum deles altera o kit: a prova do modo C monta a versao nova
 numa copia temporaria, justamente para que os outros blocos continuem
@@ -614,9 +667,9 @@ testes dos guards, das sessoes, do `new-artifact` e do round-trip de YAML.
 
 ````text
 $ python3 -m unittest discover bin/tests
-......................................................................................................................................................................................
+......................................................................................................................................................................................................
 ----------------------------------------------------------------------
-Ran 182 tests in 38.013s
+Ran 198 tests in 41.650s
 
 OK
 EXIT: 0
@@ -642,11 +695,11 @@ aberta (3a); `session-close --check` saindo 1 com a sessao aberta e 0 depois
 
 ----- 1. Instalacao -----
 $ /home/user/product-lifecycle-kit/install.sh . --adapters claude-code
-Instalando o product-lifecycle-kit 1.1.0 em /tmp/prova-a.
+Instalando o product-lifecycle-kit 1.2.0 em /tmp/prova-a.
   __pycache__ adicionado ao .gitignore do alvo
 Adaptador claude-code.
 
-docs/KIT_VERSION: 1.1.0
+docs/KIT_VERSION: 1.2.0
 Rodando gate-check no alvo.
 
 gate-check: nenhuma ocorrencia.
@@ -690,9 +743,8 @@ arquivo; o Codex le direto daqui.
 
 ## Protocolo de sessao
 
-Primeira acao da sessao e `session-open`. Ultima e `session-close`. Sem
-excecao. Se a saida de `session-open` nao esta no seu contexto, rode antes de
-qualquer outra coisa.
+Primeira acao da sessao e `session-open`, ultima e `session-close`, sem
+excecao. Se a saida de `session-open` nao esta no seu contexto, rode ja.
 
 | Acao | Qualquer runtime | Claude Code tambem |
 |---|---|---|
@@ -704,20 +756,23 @@ qualquer outra coisa.
 | Fechar sessao | `bin/lifecycle/session-close --handoff <arquivo>` | `/session-close` |
 
 `--inputs` e obrigatorio fora das fases 01 e 02. Um artefato por gate: para
-substituir um que ja existe, use `--supersede`.
-
-O handoff vai num arquivo temporario fora de `docs/_handoffs/`, com tres
-secoes nesta ordem e no maximo 15 linhas: `## Fiz`, `## Falta`, `## Cuidado
-com`. O script move para o lugar certo.
+substituir um existente, use `--supersede`. Handoff vai num arquivo temporario
+fora de `docs/_handoffs/`, no maximo 15 linhas, com `## Fiz`, `## Falta`,
+`## Cuidado com`. O script move para o lugar.
 
 ## Codigo so da fase 13 em diante
 
-Commit que toca codigo do produto exige a fase corrente ser 13-build-log ou
-posterior. O `commit-msg` recusa fora disso e explica o que se perde. Se
-precisar entrar assim mesmo, **pergunte ao humano e espere a resposta**; com a
-autorizacao dele, registre no commit a linha `Sem-fase: <por que entra sem
-fase, e quem autorizou>`. Nunca escreva esse trailer sozinho: autorizar a si
-mesmo e o mesmo que aprovar o proprio gate, e a regra 4 proibe.
+Commit que toca codigo do produto exige fase corrente 13-build-log ou depois;
+o `commit-msg` recusa e explica o que se perde. Para entrar assim mesmo,
+**pergunte ao humano e espere**: com a autorizacao dele, registre no commit
+`Sem-fase: <motivo, e quem autorizou>`. Nunca escreva esse trailer sozinho: e
+aprovar o proprio gate, que a regra 4 proibe.
+
+## Modo reverso
+
+Com `import_mode: reverse` o gate por fase esta suspenso: reconstrua as fases
+vencidas em `proposed`, cada afirmacao apontando em `reconstructed_from` para o
+que a sustenta. Sem evidencia vira `open_question`. Confirmar em bloco e humano.
 
 ## Regras
 
@@ -738,11 +793,9 @@ mesmo e o mesmo que aprovar o proprio gate, e a regra 4 proibe.
 ## O que voce pode e nao pode editar
 
 Pode: artefatos `draft` ou `review` em `docs/areas/`, `docs/STATE.md`,
-handoffs, e o codigo do projeto. Nao pode: `docs/_context/CONTEXT.md`, ADR
-`accepted`, artefato `approved`, `docs/_process/` inteiro, e este arquivo.
-
-Nunca aprove um gate. Nunca suponha regra de negocio. Nunca edite CONTEXT.md,
-ADR aceita, artefato aprovado ou docs/_process sem decisao humana registrada.
+handoffs, e o codigo do projeto. Nao pode, sem decisao humana registrada:
+`docs/_context/CONTEXT.md`, ADR `accepted`, artefato `approved`,
+`docs/_process/` e este arquivo.
 
 === docs/STATE.md
 # STATE
@@ -753,6 +806,7 @@ artefatos, onde status existe.
 ```yaml
 project: prova-a
 tier: 1                       # 1 | 2 | 3
+import_mode: null             # reverse enquanto a importacao nao foi confirmada
 current_phase: null
 current_area: null
 next_action: Escrever o contexto e o nao-escopo # uma frase imperativa
@@ -873,7 +927,7 @@ EXIT: 1
 
 ----- 3c. gate-check --phase 13-build ANTES de aprovar a fase 01 -----
 $ python3 bin/lifecycle/gate-check --phase 13-build
-[SQ-01] docs/STATE.md:9 fase 13-build-log exige a fase obrigatoria 01-contexto aprovada, mas ela esta nao registrado
+[SQ-01] docs/STATE.md:10 fase 13-build-log exige a fase obrigatoria 01-contexto aprovada, mas ela esta nao registrado
 gate-check: 1 erro(s), 0 aviso(s).
 EXIT: 1
 $ python3 bin/lifecycle/new-artifact 01-contexto nucleo Contexto do prova-a --owner Jonathan Camargo
@@ -886,7 +940,7 @@ artefato docs/areas/nucleo/01-contexto/contexto-do-prova-a.md marcado proposed p
 ----- 3d. session-close com handoff -----
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-a.md
 gate-check: nenhuma ocorrencia.
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-01.md.
+Handoff registrado em docs/_handoffs/2026-08-28-sessao-01.md.
 Commit: sessao 01: 01-contexto escrevi o contexto e o nao-escopo
 EXIT: 0
 
@@ -896,7 +950,7 @@ session-close: nada pendente, a sessao pode encerrar.
 EXIT: 0
 
 ----- 4. Humano aprova o gate 01 -----
-gate 01-contexto aprovado por Jonathan Camargo em 2026-08-27
+gate 01-contexto aprovado por Jonathan Camargo em 2026-08-28
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -923,10 +977,10 @@ EXIT: 0
 artefato docs/areas/nucleo/13-build-log/build-do-prova-a.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-a.md
 gate-check: nenhuma ocorrencia.
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-02.md.
+Handoff registrado em docs/_handoffs/2026-08-28-sessao-02.md.
 Commit: sessao 02: 13-build-log executei a fase 13-build
 EXIT: 0
-gate 13-build-log aprovado por Jonathan Camargo em 2026-08-27
+gate 13-build-log aprovado por Jonathan Camargo em 2026-08-28
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -942,10 +996,10 @@ EXIT: 0
 artefato docs/areas/nucleo/14-review/review-do-prova-a.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-a.md
 gate-check: nenhuma ocorrencia.
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-03.md.
+Handoff registrado em docs/_handoffs/2026-08-28-sessao-03.md.
 Commit: sessao 03: 14-review executei a fase 14-review
 EXIT: 0
-gate 14-review aprovado por Jonathan Camargo em 2026-08-27
+gate 14-review aprovado por Jonathan Camargo em 2026-08-28
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -961,10 +1015,10 @@ EXIT: 0
 artefato docs/areas/nucleo/17-ship/ship-do-prova-a.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-a.md
 gate-check: nenhuma ocorrencia.
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-04.md.
+Handoff registrado em docs/_handoffs/2026-08-28-sessao-04.md.
 Commit: sessao 04: 17-ship executei a fase 17-ship
 EXIT: 0
-gate 17-ship aprovado por Jonathan Camargo em 2026-08-27
+gate 17-ship aprovado por Jonathan Camargo em 2026-08-28
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -976,6 +1030,7 @@ $ sed -n /```yaml/,/```/p docs/STATE.md
 ```yaml
 project: prova-a
 tier: 1                       # 1 | 2 | 3
+import_mode: null             # reverse enquanto a importacao nao foi confirmada
 current_phase: 17-ship
 current_area: nucleo
 next_action: Escrever o contexto e o nao-escopo # uma frase imperativa
@@ -986,38 +1041,38 @@ gates:                        # slug da fase: {status, evidence, by, date}
     status: approved
     evidence: docs/areas/nucleo/01-contexto/contexto-do-prova-a.md
     by: Jonathan Camargo
-    date: 2026-08-27
+    date: 2026-08-28
   13-build-log:
     status: approved
     evidence: docs/areas/nucleo/13-build-log/build-do-prova-a.md
     by: Jonathan Camargo
-    date: 2026-08-27
+    date: 2026-08-28
   14-review:
     status: approved
     evidence: docs/areas/nucleo/14-review/review-do-prova-a.md
     by: Jonathan Camargo
-    date: 2026-08-27
+    date: 2026-08-28
   17-ship:
     status: approved
     evidence: docs/areas/nucleo/17-ship/ship-do-prova-a.md
     by: Jonathan Camargo
-    date: 2026-08-27
-last_session: docs/_handoffs/2026-08-27-sessao-04.md # path do ultimo handoff
+    date: 2026-08-28
+last_session: docs/_handoffs/2026-08-28-sessao-04.md # path do ultimo handoff
 session_counter: 4
 session_open: false           # true entre session-open e session-close
 session_agent: claude-code    # codex | claude-code | human
 ```
 EXIT: 0
 $ git log --oneline
-bc7d8dd humano aprova o gate 17-ship
-c60e86f sessao 04: 17-ship executei a fase 17-ship
-28da48d humano aprova o gate 14-review
-17f6ca7 sessao 03: 14-review executei a fase 14-review
-01e90ab humano aprova o gate 13-build-log
-5a89bdc sessao 02: 13-build-log executei a fase 13-build
-0055a2a humano aprova o gate 01-contexto
-429c793 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-0809efa instala o product-lifecycle-kit
+64fbe0e humano aprova o gate 17-ship
+3ed10f1 sessao 04: 17-ship executei a fase 17-ship
+1b531c3 humano aprova o gate 14-review
+2b0fe0c sessao 03: 14-review executei a fase 14-review
+ea2cb52 humano aprova o gate 13-build-log
+4dc9fc4 sessao 02: 13-build-log executei a fase 13-build
+24254ce humano aprova o gate 01-contexto
+0b388bd sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+3f5bbf5 instala o product-lifecycle-kit
 EXIT: 0
 ````
 
@@ -1043,11 +1098,11 @@ garantias que existem sem rede de seguranca de runtime:
 
 ----- 1. Instalacao sem nenhum hook de runtime -----
 $ /home/user/product-lifecycle-kit/install.sh . --adapters codex
-Instalando o product-lifecycle-kit 1.1.0 em /tmp/prova-b.
+Instalando o product-lifecycle-kit 1.2.0 em /tmp/prova-b.
   __pycache__ adicionado ao .gitignore do alvo
 Adaptador codex.
 
-docs/KIT_VERSION: 1.1.0
+docs/KIT_VERSION: 1.2.0
 Rodando gate-check no alvo.
 
 gate-check: nenhuma ocorrencia.
@@ -1092,7 +1147,7 @@ commit inicial ok
 
 ----- 3. Sessao 01, fase 01-contexto, invocando os scripts direto -----
 $ python3 bin/lifecycle/session-open --agent codex
-[cabecalho de AGENTS.md, STATE.md, CONTEXT.md e principles.md suprimido aqui, 175 linhas]
+[cabecalho de AGENTS.md, STATE.md, CONTEXT.md e principles.md suprimido aqui, 176 linhas]
 gate-check: nenhuma ocorrencia.
 
 Sessao 01 aberta para o agente codex.
@@ -1106,10 +1161,10 @@ EXIT: 0
 artefato docs/areas/nucleo/01-contexto/contexto-do-prova-b.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
 gate-check: nenhuma ocorrencia.
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-01.md.
+Handoff registrado em docs/_handoffs/2026-08-28-sessao-01.md.
 Commit: sessao 01: 01-contexto escrevi o contexto e o nao-escopo
 EXIT: 0
-gate 01-contexto aprovado por Jonathan Camargo em 2026-08-27
+gate 01-contexto aprovado por Jonathan Camargo em 2026-08-28
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -1124,10 +1179,10 @@ EXIT: 0
 artefato docs/areas/nucleo/13-build-log/build-do-prova-b.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
 gate-check: nenhuma ocorrencia.
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-02.md.
+Handoff registrado em docs/_handoffs/2026-08-28-sessao-02.md.
 Commit: sessao 02: 13-build-log executei a fase 13-build
 EXIT: 0
-gate 13-build-log aprovado por Jonathan Camargo em 2026-08-27
+gate 13-build-log aprovado por Jonathan Camargo em 2026-08-28
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -1142,10 +1197,10 @@ EXIT: 0
 artefato docs/areas/nucleo/14-review/review-do-prova-b.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
 gate-check: nenhuma ocorrencia.
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-03.md.
+Handoff registrado em docs/_handoffs/2026-08-28-sessao-03.md.
 Commit: sessao 03: 14-review executei a fase 14-review
 EXIT: 0
-gate 14-review aprovado por Jonathan Camargo em 2026-08-27
+gate 14-review aprovado por Jonathan Camargo em 2026-08-28
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -1160,10 +1215,10 @@ EXIT: 0
 artefato docs/areas/nucleo/17-ship/ship-do-prova-b.md marcado proposed pelo agente
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
 gate-check: nenhuma ocorrencia.
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-04.md.
+Handoff registrado em docs/_handoffs/2026-08-28-sessao-04.md.
 Commit: sessao 04: 17-ship executei a fase 17-ship
 EXIT: 0
-gate 17-ship aprovado por Jonathan Camargo em 2026-08-27
+gate 17-ship aprovado por Jonathan Camargo em 2026-08-28
 gate-check: nenhuma ocorrencia.
 commit da aprovacao ok
 
@@ -1181,14 +1236,14 @@ EXIT: 1
 ----- 5a. O mesmo commit passa depois do session-close -----
 $ python3 bin/lifecycle/session-close --handoff /tmp/handoff-b.md
 gate-check: nenhuma ocorrencia.
-Handoff registrado em docs/_handoffs/2026-08-27-sessao-05.md.
+Handoff registrado em docs/_handoffs/2026-08-28-sessao-05.md.
 Commit: sessao 05: 17-ship trabalho da sessao 05
 EXIT: 0
 
 ----- 5b. Codigo fora de docs/ nao e refem do protocolo de sessao -----
 $ git commit -m commit de codigo com a sessao aberta
 gate-check: nenhuma ocorrencia.
-[main 8acd989] commit de codigo com a sessao aberta
+[main 9c51149] commit de codigo com a sessao aberta
  1 file changed, 1 insertion(+)
  create mode 100644 src/app.py
 EXIT: 0
@@ -1206,7 +1261,7 @@ EXIT: 1
 
 ----- 6b. o artefato aprovado continua intocado no repositorio -----
 $ git log --oneline -1 -- docs/areas/nucleo/01-contexto/contexto-do-prova-b.md
-dd9865d humano aprova o gate 01-contexto
+e26a736 humano aprova o gate 01-contexto
 EXIT: 0
 
 ----- 7. Entrada DECIDED em decisions.log liberando o mesmo path -----
@@ -1217,7 +1272,7 @@ EXIT: 0
 ----- 7a. o mesmo commit agora passa -----
 $ git commit -m corrige o artefato aprovado sob a decisao D-0001
 gate-check: nenhuma ocorrencia.
-[main 129316c] corrige o artefato aprovado sob a decisao D-0001
+[main 7b0fd1b] corrige o artefato aprovado sob a decisao D-0001
  2 files changed, 8 insertions(+)
 EXIT: 0
 
@@ -1232,7 +1287,7 @@ EXIT: 1
 ----- 8a. a mesma mudanca passa com uma mensagem que nao e de sessao -----
 $ git commit -m adiciona uma nota solta
 gate-check: nenhuma ocorrencia.
-[main a1dc591] adiciona uma nota solta
+[main 8fc20b8] adiciona uma nota solta
  1 file changed, 1 insertion(+)
  create mode 100644 nota.txt
 EXIT: 0
@@ -1242,27 +1297,27 @@ $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
 $ git log --oneline
-a1dc591 adiciona uma nota solta
-129316c corrige o artefato aprovado sob a decisao D-0001
-6be6af2 sessao 06: 17-ship commit de codigo
-8acd989 commit de codigo com a sessao aberta
-dbd8cb7 sessao 05: 17-ship trabalho da sessao 05
-8b69dcf humano aprova o gate 17-ship
-0983b72 sessao 04: 17-ship executei a fase 17-ship
-7cd88a0 humano aprova o gate 14-review
-c4d39d7 sessao 03: 14-review executei a fase 14-review
-8700fc2 humano aprova o gate 13-build-log
-b233854 sessao 02: 13-build-log executei a fase 13-build
-dd9865d humano aprova o gate 01-contexto
-b6f5090 sessao 01: 01-contexto escrevi o contexto e o nao-escopo
-d97066a instala o product-lifecycle-kit
+8fc20b8 adiciona uma nota solta
+7b0fd1b corrige o artefato aprovado sob a decisao D-0001
+f5a8b18 sessao 06: 17-ship commit de codigo
+9c51149 commit de codigo com a sessao aberta
+3989b02 sessao 05: 17-ship trabalho da sessao 05
+f21d2eb humano aprova o gate 17-ship
+cd7242a sessao 04: 17-ship executei a fase 17-ship
+24557c2 humano aprova o gate 14-review
+0242726 sessao 03: 14-review executei a fase 14-review
+5eadf85 humano aprova o gate 13-build-log
+adc5274 sessao 02: 13-build-log executei a fase 13-build
+e26a736 humano aprova o gate 01-contexto
+9dbbe7c sessao 01: 01-contexto escrevi o contexto e o nao-escopo
+4feb7da instala o product-lifecycle-kit
 EXIT: 0
 ````
 
 ### Modo C: atualizacao
 
 `proofs/modo-c-update.sh`. Com o projeto `prova-b` ja instalado na versao
-1.1.0, monta uma copia temporaria do kit na versao 1.2.0, com a secao
+1.2.0, monta uma copia temporaria do kit na versao 1.3.0, com a secao
 correspondente no `CHANGELOG.md`, e roda o `install.sh` dessa copia com
 `--update`.
 
@@ -1279,27 +1334,27 @@ kit instalou. Edicao a mao no mesmo arquivo continua barrada.
 
 ----- 1. Estado antes do update -----
 $ cat /tmp/prova-b/docs/KIT_VERSION
-1.1.0
+1.2.0
 EXIT: 0
-impressao digital de STATE.md + _handoffs + areas: 54836ebb41342f0ea4d0769a113dffc490b8acbb38b1a24c73306be43d3fc3eb
+impressao digital de STATE.md + _handoffs + areas: b06628de200fa53d9ca26901c4667d5b9c5063cd016b4cb723c280d0fec6a167
 
 ----- 2. Nova versao do kit, montada numa copia temporaria -----
-copia do kit montada na versao 1.2.0. O kit real segue intocado.
+copia do kit montada na versao 1.3.0. O kit real segue intocado.
 $ cat <copia>/VERSION
-1.2.0
+1.3.0
 $ cat /home/user/product-lifecycle-kit/VERSION   (o kit real)
-1.1.0
+1.2.0
 
 ----- 3. install.sh --update, rodado a partir da copia -----
 $ <copia>/install.sh /tmp/prova-b --update
-Atualizando o kit em /tmp/prova-b para a versao 1.2.0.
-Versao anterior: 1.1.0
+Atualizando o kit em /tmp/prova-b para a versao 1.3.0.
+Versao anterior: 1.2.0
   AGENTS.md nao tinha edicao do projeto, foi atualizado
   adaptador claude-code nao estava instalado, pulando
 Adaptador codex.
 
 Mudancas desta versao (CHANGELOG.md):
-  ## 1.2.0
+  ## 1.3.0
   
   Versao usada para provar o fluxo `install.sh --update` (modo C do README).
   Nenhuma mudanca de comportamento em relacao a versao anterior: processo e
@@ -1307,7 +1362,7 @@ Mudancas desta versao (CHANGELOG.md):
   contexto, handoffs ou artefatos.
   
 
-docs/KIT_VERSION: 1.2.0
+docs/KIT_VERSION: 1.3.0
 Rodando gate-check no alvo.
 
 gate-check: nenhuma ocorrencia.
@@ -1317,12 +1372,12 @@ EXIT: 0
 
 ----- 4. KIT_VERSION do alvo mudou -----
 $ cat /tmp/prova-b/docs/KIT_VERSION
-1.2.0
+1.3.0
 EXIT: 0
 
 ----- 5. STATE.md, _handoffs e areas nao mudaram -----
-antes:  54836ebb41342f0ea4d0769a113dffc490b8acbb38b1a24c73306be43d3fc3eb
-depois: 54836ebb41342f0ea4d0769a113dffc490b8acbb38b1a24c73306be43d3fc3eb
+antes:  b06628de200fa53d9ca26901c4667d5b9c5063cd016b4cb723c280d0fec6a167
+depois: b06628de200fa53d9ca26901c4667d5b9c5063cd016b4cb723c280d0fec6a167
 IGUAIS. O update nao tocou em estado, handoffs nem artefatos.
 
 ----- 5a. git status do alvo depois do update -----
@@ -1334,9 +1389,139 @@ EXIT: 0
 
 ----- 6. O kit real continua na versao de antes -----
 $ git -C /home/user/product-lifecycle-kit status --short VERSION CHANGELOG.md bin/_kitlib.py
+M  CHANGELOG.md
+M  VERSION
+M  bin/_kitlib.py
 EXIT: 0
 
 ----- 7. gate-check continua limpo depois do update -----
+$ python3 bin/lifecycle/gate-check
+gate-check: nenhuma ocorrencia.
+EXIT: 0
+````
+
+### Modo reverso: confirmacao em bloco
+
+`proofs/modo-reverso.sh`. Instala com `--reverso` num repositorio que ja tem
+codigo e nenhum processo, reconstroi a fase 01 a partir do que existe, e mostra
+o ciclo inteiro da confirmacao.
+
+O que a prova mede: a recusa por pergunta em aberto (4), a recusa da assinatura
+de agente (6), a confirmacao pelo humano (7), a procedencia gravada com
+`method: reverse-batch` e o `import_mode` caindo sozinho (8), e o `RV-01`
+acusando reconstrucao sem ponteiro de evidencia (9), limpo de novo com o
+ponteiro de volta (10).
+
+````text
+
+----- 1. Instalacao em modo reverso -----
+$ install.sh . --reverso --adapters none
+Instalando o product-lifecycle-kit 1.2.0 em /tmp/prova-reverso.
+Modo reverso: gate por fase suspenso ate confirm-import.
+Instalacao concluida. gate-check saiu com 0.
+$ grep -n import_mode docs/STATE.md
+9:import_mode: reverse          # reverse enquanto a importacao nao foi confirmada
+EXIT: 0
+
+----- 2. O agente reconstroi o que ja existe, e deixa em proposed -----
+$ python3 bin/lifecycle/new-artifact 01-contexto nucleo Contexto reconstruido --owner Jonathan Camargo
+Artefato criado: docs/areas/nucleo/01-contexto/contexto-reconstruido.md
+Gate 01-contexto registrado como in_progress em docs/STATE.md.
+Preencha o template e marque status: proposed. Nunca approved.
+EXIT: 0
+$ frontmatter do artefato reconstruido
+---
+phase: 01-contexto
+area: nucleo
+title: Contexto reconstruido
+status: proposed
+owner: Jonathan Camargo
+inputs: []
+approved_by: null
+approved_at: null
+superseded_by: null
+reconstructed_from:
+  - src/cobranca.py
+
+----- 3. plan abre pela duvida, nao pelos documentos -----
+$ python3 bin/lifecycle/plan
+Projeto: cobranca
+Tier 1: 4 fases obrigatorias, faltam 4 de 4.
+
+Modo reverso: importacao em andamento.
+Gate por fase esta suspenso. A confirmacao e em bloco, numa sessao.
+
+1. Perguntas em aberto (1). Comece por aqui: e o que o agente nao
+   conseguiu recuperar com evidencia, e ninguem alem de voce pode.
+   - Q1: Boleto ficou de fora por decisao ou por falta de tempo?
+
+2. Reconstrucoes sem ponteiro de evidencia (0). Nao da nem para
+   amostrar: confirm-import recusa enquanto existirem.
+   (nenhuma)
+
+3. Reconstrucoes com evidencia (1). Amostre algumas e confira no
+   codigo. Confianca fundamentada vale mais que leitura completa.
+   - 01-contexto          docs/areas/nucleo/01-contexto/contexto-reconstruido.md (2 ponteiro(s))
+
+4. Fases que a reconstrucao nao alcancou (3). Elas nao existem
+   no projeto, e vao ser vividas no modo normal depois.
+   - 13-build-log
+   - 14-review
+   - 17-ship
+
+Proxima acao: rodar a sessao de confirmacao e resolver os itens
+1 e 2. Depois: bin/lifecycle/confirm-import --by "<seu nome>"
+EXIT: 0
+
+----- 4. Confirmacao recusada: pergunta em aberto -----
+$ python3 bin/lifecycle/confirm-import --by Jonathan Camargo
+confirm-import: a importacao ainda nao pode ser confirmada.
+
+  - open_question Q1 sem resposta: Boleto ficou de fora por decisao ou por falta de tempo?
+
+A sessao de confirmacao existe para resolver exatamente isso.
+EXIT: 1
+
+----- 5. Humano responde a pergunta na sessao de confirmacao -----
+Q1 respondida.
+
+----- 6. Agente tentando confirmar: recusado -----
+$ python3 bin/lifecycle/confirm-import --by Claude Code
+Gates que serao confirmados em bloco (1):
+  01-contexto          docs/areas/nucleo/01-contexto/contexto-reconstruido.md
+confirm-import: 'Claude Code' parece nome de agente. O principio 4 vale aqui igual: quem confirma e humano. Mudou a granularidade da aprovacao, nao quem aprova.
+EXIT: 1
+
+----- 7. Humano confirmando em bloco -----
+$ python3 bin/lifecycle/confirm-import --by Jonathan Camargo
+Gates que serao confirmados em bloco (1):
+  01-contexto          docs/areas/nucleo/01-contexto/contexto-reconstruido.md
+
+1 gates confirmados em bloco por Jonathan Camargo em 2026-08-28.
+import_mode baixado: o projeto passa a viver no modo normal, e daqui
+em diante gate se aprova um a um.
+Commite a confirmacao. Ela e o registro de que isso aconteceu.
+EXIT: 0
+
+----- 8. Procedencia gravada, e o marcador caiu sozinho -----
+$ gates e import_mode em docs/STATE.md
+gates:                        # slug da fase: {status, evidence, by, date}
+  01-contexto:
+    status: approved
+    evidence: docs/areas/nucleo/01-contexto/contexto-reconstruido.md
+    by: Jonathan Camargo
+    date: 2026-08-28
+    method: reverse-batch
+last_session: null            # path do ultimo handoff
+9:import_mode: null             # reverse enquanto a importacao nao foi confirmada
+
+----- 9. Reconstrucao sem ponteiro seria recusada pelo gate-check -----
+$ python3 bin/lifecycle/gate-check
+[RV-01] docs/areas/nucleo/01-contexto/contexto-reconstruido.md:1 confirmado em bloco sem reconstructed_from. Uma reconstrucao sem ponteiro para o que a sustenta nao e auditavel.
+gate-check: 1 erro(s), 0 aviso(s).
+EXIT: 1
+
+----- 10. Com o ponteiro de volta, limpo -----
 $ python3 bin/lifecycle/gate-check
 gate-check: nenhuma ocorrencia.
 EXIT: 0
@@ -1352,10 +1537,10 @@ isso em vez de deixar passar.
 
 ````text
 $ /home/user/product-lifecycle-kit/install.sh . --adapters none
-Instalando o product-lifecycle-kit 1.1.0 em /tmp/prova-none.
+Instalando o product-lifecycle-kit 1.2.0 em /tmp/prova-none.
   __pycache__ adicionado ao .gitignore do alvo
 
-docs/KIT_VERSION: 1.1.0
+docs/KIT_VERSION: 1.2.0
 Rodando gate-check no alvo.
 
 gate-check: nenhuma ocorrencia.
@@ -1383,8 +1568,8 @@ EXIT: 0
 
 ----- os dois git hooks estao instalados e executaveis -----
 $ ls -l .git/hooks/pre-commit .git/hooks/commit-msg
--rwxr-xr-x 1 root root 8692 Aug 27 23:14 .git/hooks/commit-msg
--rwxr-xr-x 1 root root  623 Aug 27 23:14 .git/hooks/pre-commit
+-rwxr-xr-x 1 root root 8692 Aug 28 01:08 .git/hooks/commit-msg
+-rwxr-xr-x 1 root root  623 Aug 28 01:08 .git/hooks/pre-commit
 EXIT: 0
 
 ----- nenhum arquivo de adaptador foi instalado -----
@@ -1503,7 +1688,7 @@ $ git commit -m corrige timeout do gateway
 
 Sem-fase: hotfix de producao, autorizado por Jonathan Camargo
 gate-check: nenhuma ocorrencia.
-[main 26aafa3] corrige timeout do gateway
+[main 298ff0c] corrige timeout do gateway
  1 file changed, 1 insertion(+)
 EXIT: 0
 
@@ -1511,7 +1696,7 @@ EXIT: 0
 $ git commit -m outra coisa
 
 Sem-fase:
-[PH-01] docs/STATE.md:9 1 commit(s) de codigo entraram sem fase de build aberta. Veja com: git log --grep '^Sem-fase:'
+[PH-01] docs/STATE.md:10 1 commit(s) de codigo entraram sem fase de build aberta. Veja com: git log --grep '^Sem-fase:'
 gate-check: 0 erro(s), 1 aviso(s).
 commit-msg: Sem-fase: esta vazio.
 Pergunte ao humano e escreva a resposta dele, com nome:
@@ -1520,11 +1705,11 @@ EXIT: 1
 
 ----- 8. A divida aparece em toda sessao, e o rastro e permanente -----
 $ python3 bin/lifecycle/gate-check
-[PH-01] docs/STATE.md:9 1 commit(s) de codigo entraram sem fase de build aberta. Veja com: git log --grep '^Sem-fase:'
+[PH-01] docs/STATE.md:10 1 commit(s) de codigo entraram sem fase de build aberta. Veja com: git log --grep '^Sem-fase:'
 gate-check: 0 erro(s), 1 aviso(s).
 EXIT: 0
 $ git log --grep ^Sem-fase: --oneline
-26aafa3 corrige timeout do gateway
+298ff0c corrige timeout do gateway
 EXIT: 0
 ````
 
@@ -1566,7 +1751,7 @@ Stop           ${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-gate.sh
 $ git commit -m primeiro commit
 HOOK ANTERIOR DO PROJETO RODOU
 gate-check: nenhuma ocorrencia.
-[main (root-commit) 6606c0d] primeiro commit
+[main (root-commit) aa8bf97] primeiro commit
  1 file changed, 1 insertion(+)
  create mode 100644 docs/nota.md
 EXIT: 0
@@ -1588,7 +1773,7 @@ $ grep -rn --exclude-dir=.git --exclude-dir=out -e "<U+2014>" .
 EXIT: 1
 
 $ python3 varredura de codepoints em todos os arquivos versionados
-arquivos versionados verificados: 87
+arquivos versionados verificados: 90
 ocorrencias de travessao U+2014 ou emoji: 0
 EXIT: 0
 
@@ -1604,7 +1789,7 @@ nenhuma
 
 ## Antes de instalar num projeto real
 
-1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 29, e cada um registra uma
+1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 31, e cada um registra uma
    decisao tomada por interpretacao conservadora, nao por certeza.
 2. Rode a prova do modo B voce mesmo, do zero, sem olhar esta secao. E o modo
    sem rede de seguranca de runtime: se funciona ali, funciona em qualquer

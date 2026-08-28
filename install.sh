@@ -3,13 +3,14 @@
 #
 # Uso:
 #   install.sh <caminho-do-repo-alvo> [--adapters claude-code,codex|all|none]
-#              [--update]
+#              [--update] [--reverso]
 set -u
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ALVO=""
 ADAPTERS="all"
 UPDATE=0
+REVERSO=0
 # Listas como texto, uma entrada por linha. Array vazio sob "set -u" aborta
 # em bash 3.2, que e o /bin/bash do macOS.
 PULADOS=""
@@ -26,6 +27,7 @@ while [ $# -gt 0 ]; do
             ADAPTERS="$2"; shift 2 ;;
         --adapters=*) ADAPTERS="${1#*=}"; shift ;;
         --update) UPDATE=1; shift ;;
+        --reverso) REVERSO=1; shift ;;
         -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
         -*) erro "opcao desconhecida: $1" ;;
         *) ALVO="$1"; shift ;;
@@ -194,7 +196,7 @@ fi
 
 # 3. scripts, sem os testes do kit
 for script in gate-check new-artifact session-open session-close guard-write plan \
-              guard-commit decide _kitlib.py; do
+              guard-commit decide confirm-import _kitlib.py; do
     rel="bin/lifecycle/$script"
     # bin/lifecycle e territorio do kit, como docs/_process: script dali e
     # sempre realinhado, na instalacao e no update. Preservar um _kitlib.py
@@ -298,6 +300,21 @@ if [ -d "$ALVO/docs/templates" ]; then
 fi
 
 # 7. versao
+if [ "$REVERSO" -eq 1 ] && [ "$UPDATE" -eq 0 ]; then
+    # Marcador de importacao, nao de operacao: cai sozinho no confirm-import.
+    python3 - "$ALVO" <<'REVPY'
+import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1] + "/bin/lifecycle")
+import _kitlib as kit
+state = kit.read_state(sys.argv[1])
+state["import_mode"] = "reverse"
+kit.write_state(sys.argv[1], state)
+REVPY
+    info "Modo reverso: gate por fase suspenso ate confirm-import."
+elif [ "$REVERSO" -eq 1 ]; then
+    erro "--reverso so vale na instalacao, nao no --update. Um projeto ja instalado que precise reimportar declara import_mode a mao."
+fi
 printf '%s\n' "$VERSAO" > "$ALVO/docs/KIT_VERSION"
 printf '%s  %s\n' "$(soma "$ALVO/docs/KIT_VERSION")" "docs/KIT_VERSION" >> "$MANIFESTO.novo"
 mv "$MANIFESTO.novo" "$MANIFESTO"

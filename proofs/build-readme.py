@@ -95,7 +95,7 @@ garantias que existem sem rede de seguranca de runtime:
 - o `commit-msg` recusa `sessao 99` quando o `session_counter` nao bate (8), e
   a mesma mudanca passa com uma mensagem que nao e de sessao (8a).""", "prova-b.out"),
     ("### Modo C: atualizacao", """`proofs/modo-c-update.sh`. Com o projeto `prova-b` ja instalado na versao
-1.1.0, monta uma copia temporaria do kit na versao 1.2.0, com a secao
+1.2.0, monta uma copia temporaria do kit na versao 1.3.0, com a secao
 correspondente no `CHANGELOG.md`, e roda o `install.sh` dessa copia com
 `--update`.
 
@@ -107,6 +107,15 @@ mudam. O bloco 6 mostra que o kit real continua na versao de antes.
 Os arquivos de processo que o `--update` reescreve podem ser commitados porque
 `guard-commit` reconhece, pelo sha256 em `docs/.kit-manifest`, o que o proprio
 kit instalou. Edicao a mao no mesmo arquivo continua barrada.""", "prova-c.out"),
+    ("### Modo reverso: confirmacao em bloco", """`proofs/modo-reverso.sh`. Instala com `--reverso` num repositorio que ja tem
+codigo e nenhum processo, reconstroi a fase 01 a partir do que existe, e mostra
+o ciclo inteiro da confirmacao.
+
+O que a prova mede: a recusa por pergunta em aberto (4), a recusa da assinatura
+de agente (6), a confirmacao pelo humano (7), a procedencia gravada com
+`method: reverse-batch` e o `import_mode` caindo sozinho (8), e o `RV-01`
+acusando reconstrucao sem ponteiro de evidencia (9), limpo de novo com o
+ponteiro de volta (10).""", "modo-reverso.out"),
     ("### Instalacao sem nenhum adaptador", """Criterio de aceite: `install.sh --adapters none` num repositorio vazio termina
 com `gate-check` exit 0 e os dois git hooks instalados. E o caso que prova o
 principio 12, o de que o nucleo nao depende de agente nenhum. Repare tambem no
@@ -139,7 +148,7 @@ ocorrencia e a varredura acusaria a si mesma.""", "varredura.out"),
 prova = ["""
 ## Prova de funcionamento
 
-Tudo abaixo e saida real, colada sem edicao, gerada com o kit na versao 1.1.0.
+Tudo abaixo e saida real, colada sem edicao, gerada com o kit na versao 1.2.0.
 Os scripts que produzem cada bloco estao em `proofs/` e podem ser rodados de
 novo do zero. Nenhum deles altera o kit: a prova do modo C monta a versao nova
 numa copia temporaria, justamente para que os outros blocos continuem
@@ -152,7 +161,7 @@ partes.append("".join(prova))
 partes.append("""
 ## Antes de instalar num projeto real
 
-1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 29, e cada um registra uma
+1. Responda cada item de `OPEN_QUESTIONS.md`. Sao 31, e cada um registra uma
    decisao tomada por interpretacao conservadora, nao por certeza.
 2. Rode a prova do modo B voce mesmo, do zero, sem olhar esta secao. E o modo
    sem rede de seguranca de runtime: se funciona ali, funciona em qualquer

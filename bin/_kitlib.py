@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-KIT_VERSION = "1.1.0"
+KIT_VERSION = "1.2.0"
 
 PHASES = [
     "01-contexto", "02-discovery", "03-csd", "04-personas-jornada", "05-prd",
@@ -133,12 +133,14 @@ AGENT_TOKENS = ("agent", "codex", "claude", "ai", "bot")
 REQUIRED_FRONTMATTER = ("phase", "area", "title", "status", "owner", "inputs",
                         "approved_by", "approved_at", "superseded_by")
 
-STATE_KEYS = ["project", "tier", "current_phase", "current_area", "next_action",
+STATE_KEYS = ["project", "tier", "import_mode", "current_phase", "current_area",
+              "next_action",
               "blocked_by", "open_questions", "gates", "last_session",
               "session_counter", "session_open", "session_agent"]
 
 STATE_COMMENTS = {
     "tier": "1 | 2 | 3",
+    "import_mode": "reverse enquanto a importacao nao foi confirmada",
     "next_action": "uma frase imperativa",
     "blocked_by": "slug de gate, id de decisao ou null",
     "open_questions": "{id, question, raised_at, answered}",
@@ -152,6 +154,30 @@ DEFAULT_PROTECTED_GLOBS = ["docs/_context/CONTEXT.md", "docs/_process/**",
                            "AGENTS.md", "docs/AGENTS.md", "bin/lifecycle/**"]
 
 SESSION_AGENTS = ("codex", "claude-code", "human")
+
+# Modo reverso. E um estado de importacao, nao um modo de operacao: comeca na
+# instalacao e termina na sessao de confirmacao, quando o marcador cai sozinho.
+IMPORT_MODES = ("reverse",)
+METODO_BLOCO = "reverse-batch"
+CAMPO_EVIDENCIA = "reconstructed_from"
+
+
+def import_reverso(state):
+    return (state.get("import_mode") or "").strip().lower() == "reverse"
+
+
+def gate_em_bloco(gate):
+    return ((gate or {}).get("method") or "").strip().lower() == METODO_BLOCO
+
+
+def ponteiros_de_evidencia(front):
+    """Lista de ponteiros do reconstructed_from, sem os vazios."""
+    bruto = (front or {}).get(CAMPO_EVIDENCIA)
+    if bruto is None:
+        return []
+    if not isinstance(bruto, list):
+        bruto = [bruto]
+    return [str(x).strip() for x in bruto if str(x).strip()]
 
 
 # ---------------------------------------------------------------- YAML subset
@@ -410,6 +436,10 @@ def dump_state_body(state):
                 linhas.append("  %s:" % slug)
                 for sub in ("status", "evidence", "by", "date"):
                     linhas.append("    %s: %s" % (sub, emit_scalar(gate.get(sub))))
+                # method so aparece quando vale alguma coisa. Emitir null em
+                # todo gate sujaria o STATE.md de todo projeto ja instalado.
+                if gate.get("method"):
+                    linhas.append("    method: %s" % emit_scalar(gate["method"]))
         else:
             linhas.append(_com("%s: %s" % (key, emit_scalar(value)), comentario))
     return "\n".join(linhas)

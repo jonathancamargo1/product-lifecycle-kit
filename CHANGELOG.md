@@ -3,6 +3,33 @@
 Formato: uma secao por versao, mais nova em cima. Semver. O major muda quando
 um projeto instalado precisa de intervencao manual para continuar valendo.
 
+## 1.2.0
+
+Modo reverso deixa de exigir gate por fase.
+
+Gate no modo normal e gate no modo reverso sao atos diferentes com o mesmo
+nome. No modo normal aprovar e autorizar, e o artefato e insumo da fase
+seguinte. No modo reverso nada esta sendo autorizado: a decisao ja aconteceu e
+esta no codigo. Exigir vinte autorizacoes para algo que ninguem esta
+autorizando e o desenho que produz carimbo automatico, e um `approved`
+carimbado mente para todo leitor futuro.
+
+- `install.sh --reverso` grava `import_mode: reverse` em `docs/STATE.md`. E
+  marcador de importacao, com comeco e fim: cai sozinho na confirmacao.
+- Enquanto ele vale, o agente reconstroi tudo em `proposed` e cada afirmacao
+  aponta em `reconstructed_from` para o que a sustenta.
+- `bin/confirm-import --by "<nome>"` confirma em bloco. Recusa assinatura de
+  agente, reconstrucao sem ponteiro e pergunta em aberto sem resposta.
+- O gate confirmado assim fica com `method: reverse-batch`, para separar o que
+  foi vivido do que foi reconstruido.
+- `plan` no modo reverso abre pela duvida: perguntas em aberto, depois
+  reconstrucoes sem ponteiro, depois as com ponteiro para amostrar.
+- `gate-check` ganha `RV-01` (erro: bloco sem ponteiro) e `RV-02` (aviso:
+  marcador esquecido depois da importacao terminar).
+
+Compativel com 1.1.0: `import_mode` nasce nulo e projeto instalado continua
+igual. O que muda de comportamento so vale com o campo em `reverse`.
+
 ## 1.1.0
 
 Tres adicoes que responderam a uma pergunta simples: um agente instalado num

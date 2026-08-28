@@ -41,6 +41,84 @@ def levantamento(root, state):
     return fases
 
 
+def forca_da_evidencia(root, fase):
+    """Quantos ponteiros de reconstrucao o artefato carrega."""
+    if not fase.get("evidence"):
+        return None
+    artefato = Path(root) / fase["evidence"]
+    if not artefato.exists():
+        return None
+    front, _ = kit.read_frontmatter(artefato)
+    if front is None:
+        return None
+    return len(kit.ponteiros_de_evidencia(front))
+
+
+def painel_reverso(root, state, fases):
+    """No modo reverso a sessao abre pela duvida, nao pelos documentos.
+
+    Vinte documentos em ordem numa sessao so e a receita da leitura diagonal.
+    O que precisa do humano e o que o agente NAO achou, mais o que ele achou
+    com pouca sustentacao. Esse e o comeco da lista.
+    """
+    print("Modo reverso: importacao em andamento.")
+    print("Gate por fase esta suspenso. A confirmacao e em bloco, numa sessao.")
+    print()
+
+    sem_resposta = [q for q in (state.get("open_questions") or [])
+                    if not (q or {}).get("answered")]
+    print("1. Perguntas em aberto (%d). Comece por aqui: e o que o agente nao"
+          % len(sem_resposta))
+    print("   conseguiu recuperar com evidencia, e ninguem alem de voce pode.")
+    for questao in sem_resposta:
+        print("   - %s: %s" % (questao.get("id"), questao.get("question")))
+    if not sem_resposta:
+        print("   (nenhuma)")
+    print()
+
+    reconstruidas = [f for f in fases if f["status"] == "proposed"]
+    fracas, fortes = [], []
+    for fase in reconstruidas:
+        (fortes if (forca_da_evidencia(root, fase) or 0) else fracas).append(fase)
+
+    print("2. Reconstrucoes sem ponteiro de evidencia (%d). Nao da nem para"
+          % len(fracas))
+    print("   amostrar: confirm-import recusa enquanto existirem.")
+    for fase in fracas:
+        print("   - %-20s %s" % (fase["slug"], fase["evidence"] or ""))
+    if not fracas:
+        print("   (nenhuma)")
+    print()
+
+    print("3. Reconstrucoes com evidencia (%d). Amostre algumas e confira no"
+          % len(fortes))
+    print("   codigo. Confianca fundamentada vale mais que leitura completa.")
+    for fase in fortes:
+        quantos = forca_da_evidencia(root, fase) or 0
+        print("   - %-20s %s (%d ponteiro(s))"
+              % (fase["slug"], fase["evidence"] or "", quantos))
+    if not fortes:
+        print("   (nenhuma)")
+    print()
+
+    pendentes = [f for f in fases if f["status"] == PENDENTE]
+    if pendentes:
+        print("4. Fases que a reconstrucao nao alcancou (%d). Elas nao existem"
+              % len(pendentes))
+        print("   no projeto, e vao ser vividas no modo normal depois.")
+        for fase in pendentes:
+            print("   - %s" % fase["slug"])
+        print()
+
+    if fracas or sem_resposta:
+        print("Proxima acao: rodar a sessao de confirmacao e resolver os itens")
+        print("1 e 2. Depois: bin/lifecycle/confirm-import --by \"<seu nome>\"")
+    else:
+        print("Proxima acao: confirmar a importacao em bloco.")
+        print('  bin/lifecycle/confirm-import --by "<seu nome>"')
+    return 0
+
+
 def proxima(fases):
     """Primeira fase que ainda nao esta fechada."""
     for fase in fases:
@@ -78,6 +156,7 @@ def main(argv=None):
             "faltam": len(faltam),
             "total": len(fases),
             "proxima": seguinte["slug"] if seguinte else None,
+            "import_mode": state.get("import_mode"),
         }, ensure_ascii=False, indent=2))
         return 0
 
@@ -85,6 +164,8 @@ def main(argv=None):
     print("Tier %s: %d fases obrigatorias, faltam %d de %d."
           % (state.get("tier"), len(fases), len(faltam), len(fases)))
     print()
+    if kit.import_reverso(state):
+        return painel_reverso(root, state, fases)
     largura = max(len(f["slug"]) for f in fases)
     for fase in fases:
         marca = " " if fase["status"] in FECHADO else ">"

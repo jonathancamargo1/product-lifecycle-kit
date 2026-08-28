@@ -18,6 +18,7 @@ BIN = KIT_ROOT / "bin"
 DEFAULT_STATE = {
     "project": "fixture",
     "tier": 1,
+    "import_mode": None,
     "current_phase": None,
     "current_area": None,
     "next_action": None,
@@ -72,6 +73,8 @@ def dump_state(state):
                 lines.append("  %s:" % slug)
                 for sub in ("status", "evidence", "by", "date"):
                     lines.append("    %s: %s" % (sub, _scalar(gate.get(sub))))
+                if gate.get("method"):
+                    lines.append("    method: %s" % _scalar(gate["method"]))
         else:
             lines.append("%s: %s" % (key, _scalar(value)))
     return "# STATE\n\n```yaml\n" + "\n".join(lines) + "\n```\n"
@@ -96,7 +99,14 @@ def dump_frontmatter(fields):
             lines.append("%s: %s" % (key, _scalar(value)))
     for key, value in fields.items():
         if key not in order:
-            lines.append("%s: %s" % (key, _scalar(value)))
+            if isinstance(value, list):
+                if not value:
+                    lines.append("%s: []" % key)
+                else:
+                    lines.append("%s:" % key)
+                    lines.extend("  - %s" % item for item in value)
+            else:
+                lines.append("%s: %s" % (key, _scalar(value)))
     lines.append("---")
     return "\n".join(lines) + "\n"
 
@@ -133,7 +143,8 @@ class KitTestCase(unittest.TestCase):
             (KIT_ROOT / "VERSION").read_text().strip() + "\n", encoding="utf-8")
 
         for script in ("gate-check", "new-artifact", "session-open", "session-close",
-                       "guard-write", "guard-commit", "decide", "_kitlib.py"):
+                       "guard-write", "guard-commit", "decide", "plan",
+                       "confirm-import", "_kitlib.py"):
             src = BIN / script
             if src.exists():
                 dst = root / "bin" / "lifecycle" / script
@@ -144,6 +155,17 @@ class KitTestCase(unittest.TestCase):
 
     def write_state(self, state):
         (self.root / "docs" / "STATE.md").write_text(dump_state(state), encoding="utf-8")
+
+    def read_state(self):
+        """Le o STATE.md pelo parser do kit, que e o que os scripts usam."""
+        sys.path.insert(0, str(BIN))
+        try:
+            import importlib
+            import _kitlib
+            importlib.reload(_kitlib)
+            return _kitlib.read_state(self.root)
+        finally:
+            sys.path.remove(str(BIN))
 
     def raw_state(self, text):
         (self.root / "docs" / "STATE.md").write_text(text, encoding="utf-8")

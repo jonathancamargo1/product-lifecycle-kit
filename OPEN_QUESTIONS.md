@@ -477,3 +477,22 @@ backlog nos tiers que os tem.
 
 Efeito: `git-hooks/commit-msg`, `bin/gate-check` (PH-01), `bin/_kitlib.py`,
 `docs/AGENTS.md`, `docs/_process/lifecycle.md`.
+
+## Q30
+
+O `confirm-import` recusa `--by` com nome de agente, como o `gate-check` recusa
+`approved_by`. Mas o campo e texto: um agente que decida mentir consegue passar
+o nome de um humano, igual ao trailer `Sem-fase:` da Q29 e ao `--no-verify`.
+Interpretacao conservadora: o kit torna o desvio caro, visivel e permanente,
+nao impossivel. A confirmacao fica no `STATE.md` e no historico do git com
+nome, data e `method: reverse-batch`, entao a mentira e auditavel depois. Vale
+apertar mais, ou o teto e aceitavel por ser o mesmo dos outros dois?
+
+## Q31
+
+A confirmacao em bloco vale para todos os tiers, sem excecao, porque depende de
+`import_mode: reverse` e nao do tier. Um tier 1 importado confirma quatro fases
+numa sessao, o que e mais mecanismo do que o caso precisa. Interpretacao
+conservadora: um caminho so, porque dois caminhos para o mesmo ato seria pior
+que um mecanismo folgado. Vale simplificar para tier 1?
+
