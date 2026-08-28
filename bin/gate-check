@@ -201,6 +201,13 @@ def check_sequence(root, report, state, fase_alvo=None):
     """SQ-01."""
     if state is None:
         return
+
+    # No modo reverso nao ha fase comecando: tudo esta sendo reconstruido de
+    # uma vez, e a confirmacao e em bloco. Cobrar a anterior aprovada aqui
+    # tornaria o proprio modo reverso impossivel de usar a partir da segunda
+    # fase, que e exatamente para o que ele serve.
+    if kit.import_reverso(state):
+        return
     obrigatorias = kit.required_phases(state.get("tier"))
     if obrigatorias is None:
         return

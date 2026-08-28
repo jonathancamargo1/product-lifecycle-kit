@@ -284,3 +284,49 @@ class TestConfirmImportAtomico(ReversoBase):
         self.assertEqual(saida.returncode, 1)
         self.assertIn("gate-check", saida.stdout)
         self.assertIn("status: proposed", (self.root / bom).read_text(encoding="utf-8"))
+
+
+class TestSequenciamentoSuspenso(ReversoBase):
+    """SQ-01 nao vale no modo reverso: a fase anterior ainda esta proposed.
+
+    A fixture nasce com current_phase None e nenhum teste de modo reverso
+    passava --phase. Com em_andamento vazio, check_sequence retornava antes
+    de olhar os gates, e o modo reverso passou na suite sem nunca ter sido
+    exercitado contra o SQ-01. Num projeto de verdade, com a segunda fase
+    reconstruida e a primeira ainda proposta -- o estado normal do modo
+    reverso --, new-artifact e session-close chamam gate-check e reprovam.
+    """
+
+    def montar(self, import_mode="reverse"):
+        gates = {}
+        for slug in ("01-contexto", "02-discovery"):
+            rel = self.artefato(slug, "art-" + slug, ["src/app.py"])
+            gates[slug] = {"status": "proposed", "evidence": rel,
+                           "by": None, "date": None}
+        state = dict(DEFAULT_STATE)
+        state.update({"tier": 3, "import_mode": import_mode, "gates": gates})
+        self.write_state(state)
+        return state
+
+    def test_fase_alvo_nao_e_cobrada(self):
+        """O caso que new-artifact exercita: gate-check --phase antes de criar."""
+        self.montar()
+        saida = self.rodar("gate-check", "--phase", "03-csd")
+        self.assertEqual(saida.returncode, 0, saida.stdout + saida.stderr)
+        self.assertNotIn("SQ-01", saida.stdout)
+
+    def test_current_phase_nao_e_cobrada(self):
+        """O caso que session-close exercita: gate-check sem --phase."""
+        state = self.montar()
+        state["current_phase"] = "02-discovery"
+        self.write_state(state)
+        saida = self.rodar("gate-check")
+        self.assertEqual(saida.returncode, 0, saida.stdout + saida.stderr)
+        self.assertNotIn("SQ-01", saida.stdout)
+
+    def test_fora_do_modo_reverso_continua_cobrando(self):
+        """Suspender no reverso nao pode ter desligado o sequenciamento normal."""
+        self.montar(import_mode=None)
+        saida = self.rodar("gate-check", "--phase", "03-csd")
+        self.assertEqual(saida.returncode, 1, saida.stdout)
+        self.assertIn("SQ-01", saida.stdout)
